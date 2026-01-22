@@ -2,8 +2,9 @@ import { Box, Typography, Container, Stack, Link } from "@mui/material";
 
 export default function Footer() {
   return (
-    <Box sx={{ bgcolor: "#0d47a1", color: "#fff", py: 4, mt: 8 }}>
-      <Container>
+    <Box sx={{ bgcolor: "#015D67", color: "#fff", py: 4, mt: 8 }}>
+      {/* Topo - Links */}
+      <Container sx={{ py: 3 }}>
         <Stack direction="row" spacing={4} justifyContent="center" mb={3}>
           {[
             "Sobre Nós",
@@ -22,22 +23,44 @@ export default function Footer() {
             </Link>
           ))}
         </Stack>
-        <Typography variant="body2" align="center" sx={{ opacity: 0.7 }}>
-          Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-        </Typography>
-        <Box
-          sx={{
-            textAlign: "center",
-            mt: 4,
-            pt: 2,
-            borderTop: "1px solid rgba(255,255,255,0.1)",
-          }}
-        >
-          <Typography variant="caption">
-            © 2025 Copyright: PETComp DevLivery
-          </Typography>
-        </Box>
       </Container>
+
+      {/* Linha Superior */}
+      <Box sx={{ borderTop: "1px solid rgba(255,255,255,0.3)" }} />
+
+      {/* Conteúdo Central */}
+      <Container sx={{ py: 5, textAlign: "center" }}>
+        {/* Logo */}
+        <Box
+          component="img"
+          src="/logo-avaliapen.svg"
+          alt="logo site"
+          sx={{ height: 60, mb: 2 }}
+        />
+
+        <Typography
+          variant="body2"
+          align="center"
+          sx={{ opacity: 0.7, maxWidth: 600, mx: "auto" }}
+        >
+          Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum
+          dolor sit amet consectetur adipisicing elit. Eaque expedita veniam
+          nulla eveniet vero magnam, soluta quidem quo necessitatibus tempora
+          molestiae cum eum?
+        </Typography>
+      </Container>
+
+      {/* Linha Inferior */}
+      <Box sx={{ borderTop: "1px solid rgba(255,255,255,0.3)" }} />
+
+      {/* Copyright */}
+      <Typography
+        variant="caption"
+        align="center"
+        sx={{ display: "block", py: 2, opacity: 0.8 }}
+      >
+        © 2026 Copyright: PETComp âncer de Pênis
+      </Typography>
     </Box>
   );
 }
