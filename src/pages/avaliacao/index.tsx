@@ -132,7 +132,7 @@ export default function Avaliacao() {
 
                 <Button
                   variant="contained"
-                  href="/tela-avaliacao/penrisk"
+                  href="/avaliacao/penrisk"
                   sx={{
                     bgcolor: "#0A6C74",
                     borderRadius: 2,
