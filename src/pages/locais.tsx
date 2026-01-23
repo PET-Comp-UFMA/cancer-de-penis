@@ -64,7 +64,7 @@ export default function Hospitais() {
 
       <Header />
 
-      [{/* Breadcrumbs */}]
+      {/* Breadcrumbs */}
       <Box sx={{ py: 2 }}>
         <Container maxWidth="lg">
           <Breadcrumbs
