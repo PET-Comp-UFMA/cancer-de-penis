@@ -113,6 +113,62 @@ export default function Penrisk() {
             Questionário PENRISK
           </Typography>
 
+          <Box sx={{ display: "flex", justifyContent: "center", gap: 1, mb: 3 }}>
+              {perguntas.map((_, i) => {
+                const first = i == 0
+                const isCurrent = i === index;
+                const last = i === perguntas.length-1
+                const CurrentIsLast = index == perguntas.length-1
+                return (
+                  <Box
+                    key={i}
+                    sx={{
+                      width: isCurrent || last? 18: 6,
+                      height: isCurrent || last? 18: 6,
+                      borderRadius: "50%",
+                      border: "1px solid #0A6C74",
+                      backgroundColor: isCurrent ? "#0A6C74" : "transparent",
+
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+
+                      color: last && !CurrentIsLast? "#0A6C74": "#fff",
+                      fontSize: 10,
+                      fontWeight: 700,
+                    }}
+                  >
+                    {isCurrent || last? i + 1 : ""}
+                  </Box>
+
+
+                  
+                );
+              })}
+          
+          </Box>
+          <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
+  <Button
+    variant="contained"
+    onClick={() => {
+      if (index < perguntas.length - 1) {
+        setIndex(index + 1);
+      }
+    }}
+    sx={{
+      bgcolor: "#0A6C74",
+      borderRadius: 2,
+      px: 4,
+      py: 1,
+      textTransform: "none",
+      fontWeight: 700,
+      "&:hover": { bgcolor: "#085A61" },
+    }}
+  >
+    Avançar (teste)
+  </Button>
+</Box>
+
           
         </Container>
       </Box>
