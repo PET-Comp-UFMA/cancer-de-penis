@@ -26,7 +26,6 @@ export default function Home() {
           backgroundPosition: "left center",
           backgroundRepeat: "no-repeat",
           position: "relative",
-          mt: { xs: 0, md: 8 },
           pt: { xs: 12, md: 10 },
           pb: { xs: 6, md: 8 },
           "&::before": {

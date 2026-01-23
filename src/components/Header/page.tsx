@@ -11,20 +11,15 @@ import {
   ListItem,
   ListItemText,
 } from "@mui/material";
-import { isHmrRefresh } from "next/dist/server/app-render/work-unit-async-storage.external";
 import MenuIcon from "@mui/icons-material/Menu";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-
-// const toggleDrawer = (value) => () => {
-//   setOpen(value);
-// };
 
 const menuItems = [
   { label: "Início", href: "/" },
   { label: "Avaliação de Risco", href: "/avaliacao" },
   { label: "Autores", href: "/autores" },
-  { label: "Centro de Atendimento", href: "atendimento" },
+  { label: "Centro de Atendimento", href: "/atendimento" },
 ];
 
 export default function Header() {
@@ -34,7 +29,7 @@ export default function Header() {
   return (
     <>
       <AppBar
-        position="fixed"
+        position="sticky"
         elevation={0}
         sx={{ bgcolor: "#015D67", zIndex: 1201 }}
       >
