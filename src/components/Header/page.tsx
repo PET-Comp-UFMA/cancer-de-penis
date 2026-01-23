@@ -17,7 +17,7 @@ import { useState } from "react";
 
 const menuItems = [
   { label: "Início", href: "/" },
-  { label: "Avaliação de Risco", href: "/avaliacao" },
+  { label: "Avaliação de Risco", href: "/tela-avaliacao/tela-avaliacao" },
   { label: "Autores", href: "/autores" },
   { label: "Centro de Atendimento", href: "/atendimento" },
 ];
