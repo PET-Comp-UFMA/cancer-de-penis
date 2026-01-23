@@ -1,6 +1,5 @@
 import Head from "next/head";
 import { Box, Container, Typography, Button } from "@mui/material";
-import Grid from "@mui/material/Grid";
 import Header from "@/components/Header/page";
 import Footer from "@/components/Footer/page";
 
@@ -13,60 +12,157 @@ export default function Home() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
-
       <Header />
 
-      {/* Conteúdo Principal */}
+      {/* Hero Section */}
       <Box
         component="section"
         sx={{
-          minHeight: "90vh",
+          minHeight: "85vh",
           display: "flex",
           alignItems: "center",
           backgroundImage: 'url("/medico.png")',
           backgroundSize: "cover",
-          backgroundPosition: "center",
+          backgroundPosition: "left center",
           backgroundRepeat: "no-repeat",
-          pt: 14,
-          pb: { xs: 6, md: 12 },
+          position: "relative",
+          mt: { xs: 0, md: 8 },
+          pt: { xs: 12, md: 10 },
+          pb: { xs: 6, md: 8 },
+          "&::before": {
+            content: '""',
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background:
+              "linear-gradient(to right, rgba(213, 233, 235, 0.3) 0%, rgba(232, 244, 245, 0.7) 40%, rgba(240, 247, 248, 0.95) 60%, rgba(248, 252, 252, 1) 100%)",
+            zIndex: 1,
+          },
         }}
       >
-        <Container maxWidth="lg" sx={{ textAlign: "left" }}>
-          <Box sx={{ maxWidth: 600 }}>
+        <Container maxWidth="lg" sx={{ position: "relative", zIndex: 2 }}>
+          <Box
+            sx={{
+              maxWidth: "650px",
+              ml: { xs: 2, md: "45%" },
+              pr: { xs: 2, md: 4 },
+            }}
+          >
             <Typography
               variant="overline"
-              sx={{ fontWeight: 600, mb: 1, color: "#47878E" }}
+              sx={{
+                fontWeight: 600,
+                mb: 2,
+                color: "#5FA8B0",
+                letterSpacing: 2,
+                fontSize: "0.85rem",
+                display: "block",
+              }}
             >
-              Avaliação e Saúde
+              AVALIAÇÃO E SAÚDE
             </Typography>
-
             <Typography
-              variant="h4"
-              sx={{ fontWeight: 700, mb: 3, color: "#1F6C75" }}
+              variant="h2"
+              sx={{
+                fontWeight: 700,
+                mb: 3,
+                color: "#1E6B73",
+                lineHeight: 1.2,
+                fontSize: { xs: "2.5rem", md: "3.5rem" },
+              }}
             >
-              Instrumento de Avaliação de Câncer de Pênis
+              Instrumentos de Avaliação de Câncer de Pênis
             </Typography>
-
-            <Typography sx={{ mb: 4, color: "#454D5D" }}>
+            <Typography
+              sx={{
+                mb: 5,
+                color: "#5A6C7D",
+                fontSize: { xs: "1rem", md: "1.15rem" },
+                lineHeight: 1.6,
+              }}
+            >
               Ferramentas de avaliação para o diagnóstico de câncer de pênis
             </Typography>
-
             <Button
               variant="contained"
               href="/avaliacao"
               sx={{
-                bgcolor: "#0A6C74",
-                borderRadius: 5,
-                px: 4,
-                py: 1.2,
+                bgcolor: "#00BCD4",
+                color: "#FFF",
+                borderRadius: 1.5,
+                px: 5,
+                py: 1.8,
                 textTransform: "none",
-                fontWeight: 500,
-                "&:hover": { bgcolor: "#085A61" },
+                fontWeight: 600,
+                fontSize: "1rem",
+                boxShadow: "0 4px 12px rgba(0, 188, 212, 0.3)",
+                "&:hover": {
+                  bgcolor: "#00ACC1",
+                  boxShadow: "0 6px 16px rgba(0, 188, 212, 0.4)",
+                  transform: "translateY(-2px)",
+                  transition: "all 0.3s ease",
+                },
               }}
             >
               Saiba mais
             </Button>
           </Box>
+        </Container>
+      </Box>
+
+      {/* Seção Informativa */}
+      <Box
+        component="section"
+        sx={{
+          py: { xs: 6, md: 10 },
+          bgcolor: "#FFFFFF",
+        }}
+      >
+        <Container maxWidth="lg">
+          <Typography
+            variant="h4"
+            sx={{
+              fontWeight: 700,
+              mb: 4,
+              color: "#1E6B73",
+              lineHeight: 1.4,
+            }}
+          >
+            O que é câncer de Pênis? Entenda a doença, seus sinais e a
+            importância do diagnóstico precoce
+          </Typography>
+          <Typography
+            variant="h6"
+            sx={{
+              fontWeight: 700,
+              mb: 3,
+              color: "#2C3E50",
+              fontSize: "1.25rem",
+            }}
+          >
+            Entenda o câncer de pênis
+          </Typography>
+          <Typography
+            sx={{
+              color: "#5A6C7D",
+              lineHeight: 1.9,
+              fontSize: "1.05rem",
+              textAlign: "justify",
+              pr: 2,
+            }}
+          >
+            O câncer de pênis é uma doença rara que ocorre quando células
+            malignas crescem na pele e nos tecidos do pênis. Ele inicia-se com
+            células anormais que se multiplicam de forma descontrolada, podendo
+            se espalhar para outras partes do corpo. O câncer mais comum do
+            órgão é o carcinoma de células escamosas, que afeta mais de 95% dos
+            casos. Entre as causas, estão fatores como falta de higiene,
+            infecções por HPV (papilomavírus humano) e o hábito de fumar. A
+            cirurgia de fimose e a realização da circuncisão diminuem o risco de
+            desenvolver essa doença.
+          </Typography>
         </Container>
       </Box>
 
