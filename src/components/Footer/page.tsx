@@ -51,7 +51,7 @@ export default function Footer() {
       </Container>
 
       {/* Linha Inferior */}
-      <Box sx={{ borderTop: "1px solid rgba(255,255,255,0.3)" }} />
+      <Box sx={{ borderTop: "5px solid rgba(255,255,255,0.3)" }} />
 
       {/* Copyright */}
       <Typography

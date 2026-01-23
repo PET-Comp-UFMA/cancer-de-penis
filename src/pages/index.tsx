@@ -86,7 +86,7 @@ export default function Home() {
             </Typography>
             <Button
               variant="contained"
-              href="/avaliacao"
+              href="/tela-avaliacao/tela-avaliacao"
               sx={{
                 bgcolor: "#00BCD4",
                 color: "#FFF",

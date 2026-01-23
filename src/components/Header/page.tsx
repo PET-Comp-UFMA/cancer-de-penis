@@ -19,7 +19,7 @@ const menuItems = [
   { label: "Início", href: "/" },
   { label: "Avaliação de Risco", href: "/tela-avaliacao/tela-avaliacao" },
   { label: "Autores", href: "/autores" },
-  { label: "Centro de Atendimento", href: "/atendimento" },
+  { label: "Centros de Atendimento", href: "/locais" },
 ];
 
 export default function Header() {
