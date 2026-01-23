@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Box, Container, Typography, Button, Radio, RadioGroup, FormControlLabel, LinearProgress } from "@mui/material";
 import Header from "@/components/Header/page";
 import Footer from "@/components/Footer/page";
+import Link from "next/link";
+
 
 const perguntas = [
   'Você puxa a pele do pênis e lava a cabeça do pênis diariamente com água e sabão?',
@@ -16,12 +18,12 @@ const perguntas = [
   'A pele ou a cabeça do seu pênis apresenta alguma ferida ou sangramento?',
   'Você fuma ou fumou por muito tempo? ',
   'Você já teve infecções no pênis?',
-  'Você apresenta ou apresentou recentementecoceira na pele ou na cabeça do pênis?',
+  'Você apresenta ou apresentou recentemente coceira na pele ou na cabeça do pênis?',
   'Você tem verruga no pênis?',
   'Você já fez sexo com animais?',
 ];
 
-export default function Questionario() {
+export default function Penrisk() {
   const [index, setIndex] = useState(0);
   const [respostas, setRespostas] = useState<(boolean | null)[]>(Array(perguntas.length).fill(null));
 
@@ -47,32 +49,71 @@ export default function Questionario() {
   return (
     <>
       <Head>
-        <title>Questionário PENRISK</title>
-        <meta name="description" content="Questionário de avaliação de risco de câncer de pênis" />
+        <title>Penrisk</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <link rel="icon" href="/favicon.ico" />
       </Head>
 
       <Header />
 
       {/* Conteúdo Principal */}
-      <Box
-        component="section"
-        sx={{
-          minHeight: "90vh",
-          display: "flex",
-          alignItems: "center",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundRepeat: "no-repeat",
-          pt: 14,
-          pb: { xs: 6, md: 12 },
-        }}
-      >
-        <Container maxWidth="lg" sx={{ textAlign: "left" }}>
-          <Box sx={{ maxWidth: 600 }}>
+      <Box component="main" sx={{ pt: 8, pb: 10, bgcolor: "#fff", minHeight: "90vh" }}>
+        <Container maxWidth="lg">
+          {/* Breadcrumb */}
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              gap: 1,
+              mb: 3,
+              color: "#0A6C74",
+              fontSize: 14,
+            }}
+          >
+            <Link
+              href="/"
+              style={{
+                color: "#0A6C74",
+                fontWeight: 600,
+                textDecoration: "none",
+              }}
+            >
+              Página Inicial
+            </Link>
+            <Typography component="span" sx={{ color: "#0A6C74" }}>
+              ›
+            </Typography>
+            <Link
+              href="/avaliacao"
+              style={{
+                color: "#0A6C74",
+                fontWeight: 600,
+                textDecoration: "none",
+              }}
+            >
+              Avaliação de Risco
+            </Link>
+            <Typography component="span" sx={{ color: "#0A6C74" }}>
+              ›
+            </Typography>
+            <Typography component="span" sx={{ fontWeight: 700, textDecoration: "underline" }}>
+              PENRISK
+            </Typography>
             
           </Box>
+          <Typography
+            variant="h3"
+            sx={{
+              textAlign: "center",
+              fontWeight: 800,
+              color: "#1F6C75",
+              mb: 5,
+            }}
+          >
+            Questionário PENRISK
+          </Typography>
+
+          
         </Container>
       </Box>
 
