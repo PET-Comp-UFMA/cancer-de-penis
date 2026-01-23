@@ -32,8 +32,11 @@ export default function Penrisk() {
             <Typography component="span" sx={{ color: "#0A6C74" }}>
               ›
             </Typography>
-            <Typography component="span" sx={{ fontWeight: 700, textDecoration: "underline" }}>
+             <Link href="/tela-avaliacao/tela-avaliacao" style={{ color: "#0A6C74", fontWeight: 600, textDecoration: "none" }}>
               Avaliação de Risco
+            </Link>
+            <Typography component="span" sx={{ color: "#0A6C74" }}>
+              ›
             </Typography>
              <Typography component="span" sx={{ fontWeight: 700, textDecoration: "underline" }}>
               Penrisk
