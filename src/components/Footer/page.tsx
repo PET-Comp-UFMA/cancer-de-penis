@@ -59,7 +59,7 @@ export default function Footer() {
         align="center"
         sx={{ display: "block", py: 2, opacity: 0.8 }}
       >
-        © 2026 Copyright: PETComp âncer de Pênis
+        © 2026 Copyright: PETComp Câncer de Pênis
       </Typography>
     </Box>
   );

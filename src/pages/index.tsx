@@ -1,19 +1,8 @@
 import Head from "next/head";
-import Image from "next/image";
-import { Geist, Geist_Mono } from "next/font/google";
-import styles from "@/styles/Home.module.css";
+import { Box, Container, Typography, Button } from "@mui/material";
+import Grid from "@mui/material/Grid";
 import Header from "@/components/Header/page";
 import Footer from "@/components/Footer/page";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export default function Home() {
   return (
@@ -27,67 +16,60 @@ export default function Home() {
 
       <Header />
 
-      <div
-        className={`${styles.page} ${geistSans.variable} ${geistMono.variable}`}
+      {/* Conteúdo Principal */}
+      <Box
+        component="section"
+        sx={{
+          minHeight: "90vh",
+          display: "flex",
+          alignItems: "center",
+          backgroundImage: 'url("/medico.png")',
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+          pt: 14,
+          pb: { xs: 6, md: 12 },
+        }}
       >
-        <main className={styles.main}>
-          <Image
-            className={styles.logo}
-            src="/next.svg"
-            alt="Next.js logo"
-            width={100}
-            height={20}
-            priority
-          />
-          <div className={styles.intro}>
-            <h1>To get started, edit the index.tsx file.</h1>
-            <p>
-              Looking for a starting point or more instructions? Head over to{" "}
-              <a
-                href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Templates
-              </a>{" "}
-              or the{" "}
-              <a
-                href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Learning
-              </a>{" "}
-              center.
-            </p>
-          </div>
-          <div className={styles.ctas}>
-            <a
-              className={styles.primary}
-              href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
+        <Container maxWidth="lg" sx={{ textAlign: "left" }}>
+          <Box sx={{ maxWidth: 600 }}>
+            <Typography
+              variant="overline"
+              sx={{ fontWeight: 600, mb: 1, color: "#47878E" }}
             >
-              <Image
-                className={styles.logo}
-                src="/vercel.svg"
-                alt="Vercel logomark"
-                width={16}
-                height={16}
-              />
-              Deploy Now
-            </a>
-            <a
-              className={styles.secondary}
-              href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
+              Avaliação e Saúde
+            </Typography>
+
+            <Typography
+              variant="h4"
+              sx={{ fontWeight: 700, mb: 3, color: "#1F6C75" }}
             >
-              Documentation
-            </a>
-          </div>
-        </main>
-      </div>
+              Instrumento de Avaliação de Câncer de Pênis
+            </Typography>
+
+            <Typography sx={{ mb: 4, color: "#454D5D" }}>
+              Ferramentas de avaliação para o diagnóstico de câncer de pênis
+            </Typography>
+
+            <Button
+              variant="contained"
+              href="/avaliacao"
+              sx={{
+                bgcolor: "#0A6C74",
+                borderRadius: 5,
+                px: 4,
+                py: 1.2,
+                textTransform: "none",
+                fontWeight: 500,
+                "&:hover": { bgcolor: "#085A61" },
+              }}
+            >
+              Saiba mais
+            </Button>
+          </Box>
+        </Container>
+      </Box>
+
       <Footer />
     </>
   );
