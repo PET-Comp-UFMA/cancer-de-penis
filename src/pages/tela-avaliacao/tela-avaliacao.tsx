@@ -1,6 +1,15 @@
 import Head from "next/head";
 import Link from "next/link";
-import { Box, Container, Typography, Card, CardMedia, CardContent, Button, Chip } from "@mui/material";
+import {
+  Box,
+  Container,
+  Typography,
+  Card,
+  CardMedia,
+  CardContent,
+  Button,
+  Chip,
+} from "@mui/material";
 import Header from "@/components/Header/page";
 import Footer from "@/components/Footer/page";
 
@@ -14,7 +23,7 @@ export default function Avaliacao() {
 
       <Header />
 
-      <Box component="main" sx={{ pt: 14, pb: 10, bgcolor: "#fff" }}>
+      <Box component="main" sx={{ pt: 8, pb: 10, bgcolor: "#fff" }}>
         <Container maxWidth="lg">
           <Box
             sx={{
@@ -27,13 +36,23 @@ export default function Avaliacao() {
               fontSize: 14,
             }}
           >
-            <Link href="/" style={{ color: "#0A6C74", fontWeight: 600, textDecoration: "none" }}>
+            <Link
+              href="/"
+              style={{
+                color: "#0A6C74",
+                fontWeight: 600,
+                textDecoration: "none",
+              }}
+            >
               Página Inicial
             </Link>
             <Typography component="span" sx={{ color: "#0A6C74" }}>
               ›
             </Typography>
-            <Typography component="span" sx={{ fontWeight: 700, textDecoration: "underline" }}>
+            <Typography
+              component="span"
+              sx={{ fontWeight: 700, textDecoration: "underline" }}
+            >
               Avaliação de Risco
             </Typography>
           </Box>
@@ -79,16 +98,36 @@ export default function Avaliacao() {
               </Box>
 
               <CardContent sx={{ p: 2.2 }}>
-                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
-                  <Typography sx={{ fontWeight: 800, letterSpacing: 0.3, color: "#1F6C75" }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    mb: 1,
+                  }}
+                >
+                  <Typography
+                    sx={{
+                      fontWeight: 800,
+                      letterSpacing: 0.3,
+                      color: "#1F6C75",
+                    }}
+                  >
                     PENRISK
                   </Typography>
-
                 </Box>
 
-                <Typography sx={{ color: "#667085", fontSize: 13, lineHeight: 1.6, mb: 2 }}>
-                  Esta avaliação ajuda a identificar seu risco de desenvolver câncer de pênis. Quanto mais cedo
-                  for detectado, maiores são as chances de um tratamento bem sucedido.
+                <Typography
+                  sx={{
+                    color: "#667085",
+                    fontSize: 13,
+                    lineHeight: 1.6,
+                    mb: 2,
+                  }}
+                >
+                  Esta avaliação ajuda a identificar seu risco de desenvolver
+                  câncer de pênis. Quanto mais cedo for detectado, maiores são
+                  as chances de um tratamento bem sucedido.
                 </Typography>
 
                 <Button
@@ -130,15 +169,36 @@ export default function Avaliacao() {
               </Box>
 
               <CardContent sx={{ p: 2.2 }}>
-                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
-                  <Typography sx={{ fontWeight: 800, letterSpacing: 0.3, color: "#1F6C75" }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    mb: 1,
+                  }}
+                >
+                  <Typography
+                    sx={{
+                      fontWeight: 800,
+                      letterSpacing: 0.3,
+                      color: "#1F6C75",
+                    }}
+                  >
                     QUALIPEN
                   </Typography>
                 </Box>
 
-                <Typography sx={{ color: "#667085", fontSize: 13, lineHeight: 1.6, mb: 2 }}>
-                  Esta avaliação tem o objetivo de entender como o câncer de pênis afeta a sua vida. Suas
-                  respostas nos ajudarão a entender o impacto da doença no seu dia a dia.
+                <Typography
+                  sx={{
+                    color: "#667085",
+                    fontSize: 13,
+                    lineHeight: 1.6,
+                    mb: 2,
+                  }}
+                >
+                  Esta avaliação tem o objetivo de entender como o câncer de
+                  pênis afeta a sua vida. Suas respostas nos ajudarão a entender
+                  o impacto da doença no seu dia a dia.
                 </Typography>
 
                 <Button

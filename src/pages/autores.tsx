@@ -68,30 +68,37 @@ export default function Autores() {
 
       <Header />
 
-      {/* Breadcrumbs */}
-      <Box sx={{ py: 2 }}>
-        <Container maxWidth="lg">
-          <Breadcrumbs
-            separator="›"
-            sx={{
-              fontSize: "0.9rem",
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-            }}
-          >
-            <Link
-              href="/"
-              underline="hover"
-              sx={{ color: "#1E6B73", fontWeight: 500 }}
-            >
-              Página Inicial
-            </Link>
-            <Typography sx={{ color: "#1E6B73", fontWeight: 600 }}>
-              Autores
-            </Typography>
-          </Breadcrumbs>
-        </Container>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          gap: 1,
+          mb: 3,
+          pt: 8,
+          color: "#0A6C74",
+          fontSize: 14,
+        }}
+      >
+        <Link
+          href="/"
+          style={{
+            color: "#0A6C74",
+            fontWeight: 600,
+            textDecoration: "none",
+          }}
+        >
+          Página Inicial
+        </Link>
+        <Typography component="span" sx={{ color: "#0A6C74" }}>
+          ›
+        </Typography>
+        <Typography
+          component="span"
+          sx={{ fontWeight: 700, textDecoration: "underline" }}
+        >
+          Autores
+        </Typography>
       </Box>
 
       {/* Título */}
