@@ -1,10 +1,11 @@
-// pages/questionario.tsx
 import Head from "next/head";
 import { useState } from "react";
 import { Box, Container, Typography, Button, Radio, RadioGroup, FormControlLabel, LinearProgress } from "@mui/material";
 import Header from "@/components/Header/page";
 import Footer from "@/components/Footer/page";
 import Link from "next/link";
+import FormQuestionario from "@/components/Questionarios/FormQuestionario";
+import { Stack } from "@mui/material";
 
 
 const perguntas = [
@@ -23,9 +24,57 @@ const perguntas = [
   'Você já fez sexo com animais?',
 ];
 
+interface QuestionBlockProps {
+  numero: number;
+  pergunta: string;
+  onAnswer: (resposta: boolean) => void;
+}
+
+export function QuestionBlock({
+  numero,
+  pergunta,
+  onAnswer,
+}: QuestionBlockProps) {
+  return (
+    <Box
+      sx={{
+        maxWidth: 600,
+        mx: "auto",        // centraliza horizontalmente
+        mt: 6,
+        p: 4,
+        textAlign: "left",
+      }}
+    >
+      <Typography
+        variant="overline"
+        sx={{
+          color: "#0A6C74",
+          fontWeight: 700,
+          display: "block",
+          mb: 1,
+        }}
+      >
+        {numero}.
+      </Typography>
+
+      <Typography
+        sx={{
+          fontSize: 18,
+          fontWeight: 500,
+          color: "#454D5D",
+        }}
+      >
+        {pergunta}
+      </Typography>
+    </Box>
+  );
+}
+
+
 export default function Penrisk() {
   const [index, setIndex] = useState(0);
   const [respostas, setRespostas] = useState<(boolean | null)[]>(Array(perguntas.length).fill(null));
+  
 
   const handleResposta = (resposta: boolean) => {
     const novasRespostas = [...respostas];
@@ -46,7 +95,7 @@ export default function Penrisk() {
     alert('Respostas enviadas com sucesso!');
   };
 
-  return (
+  /*return (
     <>
       <Head>
         <title>Penrisk</title>
@@ -55,10 +104,8 @@ export default function Penrisk() {
 
       <Header />
 
-      {/* Conteúdo Principal */}
       <Box component="main" sx={{ pt: 8, pb: 10, bgcolor: "#fff", minHeight: "90vh" }}>
         <Container maxWidth="lg">
-          {/* Breadcrumb */}
           <Box
             sx={{
               display: "flex",
@@ -102,7 +149,7 @@ export default function Penrisk() {
             
           </Box>
           <Typography
-            variant="h3"
+            variant="h4"
             sx={{
               textAlign: "center",
               fontWeight: 800,
@@ -123,8 +170,8 @@ export default function Penrisk() {
                   <Box
                     key={i}
                     sx={{
-                      width: isCurrent || last? 18: 6,
-                      height: isCurrent || last? 18: 6,
+                      width: isCurrent || last? 20: 4,
+                      height: isCurrent || last? 20: 4,
                       borderRadius: "50%",
                       border: "1px solid #0A6C74",
                       backgroundColor: isCurrent ? "#0A6C74" : "transparent",
@@ -139,41 +186,66 @@ export default function Penrisk() {
                     }}
                   >
                     {isCurrent || last? i + 1 : ""}
-                  </Box>
-
-
-                  
+                  </Box>            
                 );
               })}
           
           </Box>
-          <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
-  <Button
-    variant="contained"
-    onClick={() => {
-      if (index < perguntas.length - 1) {
-        setIndex(index + 1);
-      }
-    }}
-    sx={{
-      bgcolor: "#0A6C74",
-      borderRadius: 2,
-      px: 4,
-      py: 1,
-      textTransform: "none",
-      fontWeight: 700,
-      "&:hover": { bgcolor: "#085A61" },
-    }}
-  >
-    Avançar (teste)
-  </Button>
-</Box>
 
+          <Button variant="contained" onClick={() => { proximo() }} sx={{ bgcolor: "#0A6C74", borderRadius: 2, px: 4, py: 1, textTransform: "none", fontWeight: 700, "&:hover": { bgcolor: "#085A61" }, }} > Avançar (teste) </Button>
           
         </Container>
       </Box>
 
       <Footer />
     </>
+  );*/
+
+  return (
+    <>
+      <Head>
+        <title>Penrisk</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+      </Head>
+
+      <Header />
+      
+
+      <Box component="main" sx={{ pt: 8, pb: 10, bgcolor: "#fff" }}>
+        <Stack spacing="60px" alignItems="center"> 
+          
+          {/* ELEMENTO 1: Breadcrumbs (Links de navegação) */}
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              gap: 1,
+              color: "#0A6C74",
+              fontWeight: 600,
+              fontSize: 20,
+            }}
+          >
+            <Link href="/">Página Inicial</Link>
+            <Typography sx={{ fontWeight: "inherit" }}>›</Typography>
+            <Link href="/avaliacao">Avaliação de Risco</Link>
+            <Typography sx={{ fontWeight: "inherit" }}>›</Typography>
+            <Link href="/avaliacao" style={{textDecoration: "underline"}}>PENRISK</Link>
+
+          </Box>
+
+          {/* ELEMENTO 2: O Formulário */}
+          <FormQuestionario 
+            nome="PENRISK"
+            perguntas={perguntas}
+            tipoResposta="boolean"
+          />
+          
+        </Stack>
+      </Box>
+
+      <Footer />
+    </>
   );
+  
 }
