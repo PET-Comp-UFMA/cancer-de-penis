@@ -6,7 +6,18 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "db:migrate": "tsx scripts/db-migrate.ts",
+    "admin:create": "tsx scripts/admin.ts create",
+    "admin:reset": "tsx scripts/admin.ts reset",
+    "admin:disable": "tsx scripts/admin.ts disable",
+    "auth:secret": "node scripts/auth-secret.mjs",
+    "test:auth": "tsx --test --test-concurrency=1 tests/auth.integration.test.ts",
+    "test:auth:browser": "tsx --test tests/auth.browser.test.ts",
+    "db:check": "tsx scripts/db-check.ts",
+    "db:configure": "node scripts/db-configure.mjs",
+    "db:runtime": "tsx scripts/db-runtime.ts"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -14,17 +25,22 @@
     "@fontsource/montserrat": "^5.2.8",
     "@mui/icons-material": "^7.3.7",
     "@mui/material": "^7.3.7",
-    "next": "16.1.4",
+    "@node-rs/argon2": "^2.2.1",
+    "next": "^16.3.5",
+    "pg": "^8.23.0",
     "react": "19.2.3",
     "react-dom": "19.2.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@types/node": "^20",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^9",
-    "eslint-config-next": "16.1.4",
+    "eslint-config-next": "^16.3.5",
+    "tsx": "^4.23.13",
     "typescript": "^5"
   }
 }
