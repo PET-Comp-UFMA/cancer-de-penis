@@ -38,9 +38,10 @@ export default function FormHeader({ form }: FormHeaderProps) {
     >
       <Toolbar
         sx={{
+          display: "flex",
+          justifyContent: "space-between",
           minHeight: { xs: 76, md: 91 },
           px: { xs: 2, md: 5 },
-          gap: { xs: 2, md: 7 },
         }}
       >
         <Box
@@ -63,9 +64,10 @@ export default function FormHeader({ form }: FormHeaderProps) {
           sx={{
             display: "flex",
             alignItems: "center",
-            justifyContent: "flex-start",
-            flex: 1,
-            gap: { xs: 2, sm: 3, md: 5 },
+            justifyContent: "flex-end",
+            flex: { xs: 1, md: "0 0 auto" },
+            marginLeft: "auto",
+            gap: { xs: 2, sm: 3, md: 10 },
             overflowX: "auto",
             "&::-webkit-scrollbar": { display: "none" },
           }}
@@ -83,12 +85,9 @@ export default function FormHeader({ form }: FormHeaderProps) {
                 aria-current={isActive ? "page" : undefined}
                 sx={{
                   color: "#FAFCFC",
-                  fontSize: { xs: 15, md: 18 },
-                  fontWeight: 600,
-                  lineHeight: 1.2,
-                  whiteSpace: "nowrap",
+                  fontWeight: 500,
                   position: "relative",
-                  py: 1,
+                  pb: "6px",
                   "&::after": {
                     content: '""',
                     position: "absolute",
