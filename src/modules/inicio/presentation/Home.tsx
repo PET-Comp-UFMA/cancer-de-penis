@@ -28,17 +28,6 @@ export default function Home() {
           position: "relative",
           pt: { xs: 12, md: 10 },
           pb: { xs: 6, md: 8 },
-          "&::before": {
-            content: '""',
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background:
-              "linear-gradient(to right, rgba(213, 233, 235, 0.3) 0%, rgba(232, 244, 245, 0.7) 40%, rgba(240, 247, 248, 0.95) 60%, rgba(248, 252, 252, 1) 100%)",
-            zIndex: 1,
-          },
         }}
       >
         <Container maxWidth="lg" sx={{ position: "relative", zIndex: 2 }}>
@@ -86,7 +75,7 @@ export default function Home() {
             </Typography>
             <Button
               variant="contained"
-              href="/tela-avaliacao/tela-avaliacao"
+              href="/tela-avaliacao"
               sx={{
                 bgcolor: "#00BCD4",
                 color: "#FFF",
