@@ -65,7 +65,7 @@ export default function Hospitais() {
       <Header />
 
       {/* Breadcrumbs */}
-      <Box sx={{ py: 2 }}>
+      <Box sx={{ pt: 8, pb: 2 }}>
         <Container maxWidth="lg">
           <Breadcrumbs
             separator="›"
@@ -94,15 +94,16 @@ export default function Hospitais() {
       <Box sx={{ bgcolor: "#FFFFFF", py: 4 }}>
         <Container maxWidth="lg">
           <Typography
-            variant="h4"
+            variant="h3"
             sx={{
-              fontWeight: 700,
-              color: "#1E6B73",
+              fontWeight: 800,
+              color: "#1F6C75",
               textAlign: "center",
-              mb: 1,
+              mb: 4,
+              fontSize: { xs: "2rem", md: "3rem" },
             }}
           >
-            Centros de Atendimentos
+            Centros de Atendimento
           </Typography>
         </Container>
       </Box>
