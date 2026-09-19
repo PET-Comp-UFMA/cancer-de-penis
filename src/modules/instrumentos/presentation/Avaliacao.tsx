@@ -71,19 +71,11 @@ function toPublishedCard(form: PublicForm): CatalogCard {
   };
 }
 
-function matchesSearch(card: CatalogCard, value: string) {
-  const query = value.trim().toLocaleLowerCase();
-  if (!query) return true;
-  return [card.catalogKey, card.title, card.description]
-    .some((field) => field.toLocaleLowerCase().includes(query));
-}
-
 export default function Avaliacao() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [page, setPage] = useState(1);
   const [forms, setForms] = useState<PublicForm[]>([]);
-  const [publishedTotal, setPublishedTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -108,13 +100,11 @@ export default function Avaliacao() {
     getPublishedForms({ search: debouncedSearch, page, pageSize: PAGE_SIZE, signal: controller.signal })
       .then((result) => {
         setForms(result.forms);
-        setPublishedTotal(result.publishedTotal);
         setTotalPages(Math.max(1, result.totalPages));
       })
       .catch((requestError: unknown) => {
         if (requestError instanceof DOMException && requestError.name === "AbortError") return;
         setForms([]);
-        setPublishedTotal(0);
         setTotalPages(1);
         setError(
           requestError instanceof Error
@@ -139,10 +129,7 @@ export default function Avaliacao() {
     setSearch(value);
   }
 
-  const cards = useMemo(() => {
-    if (publishedTotal === 0) return legacyForms.filter((form) => matchesSearch(form, search));
-    return forms.map(toPublishedCard);
-  }, [forms, publishedTotal, search]);
+  const cards = useMemo(() => forms.map(toPublishedCard), [forms]);
 
   return (
     <>

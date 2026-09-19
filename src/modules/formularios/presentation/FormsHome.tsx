@@ -1,11 +1,11 @@
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
-import ArchiveOutlinedIcon from "@mui/icons-material/ArchiveOutlined";
 import ChevronLeftRoundedIcon from "@mui/icons-material/ChevronLeftRounded";
 import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
-import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
+import PublishRoundedIcon from "@mui/icons-material/PublishRounded";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
+import UnpublishedRoundedIcon from "@mui/icons-material/UnpublishedRounded";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import {
   Alert,
@@ -24,7 +24,14 @@ import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import type { AuthUser } from "@/modules/auth/presentation/api";
 import { getSession, logout } from "@/modules/auth/presentation/api";
-import { FormsApiError, getForms, type FormListItem } from "./api";
+import { AdminFooter, AdminHeader } from "@/modules/admin/presentation/AdminChrome";
+import {
+  deleteForm,
+  FormsApiError,
+  getForms,
+  updateFormStatus,
+  type FormListItem,
+} from "./api";
 
 const PAGE_SIZE = 6;
 const FOREST_GREEN = "#015D67";
@@ -32,138 +39,9 @@ const PAGE_BACKGROUND = "#FAFCFC";
 const BODY_TEXT = "#425466";
 const BORDER = "#D9D9D9";
 
-function Brand({ compact = false }: { compact?: boolean }) {
-  return (
-    <Typography
-      component="span"
-      sx={{
-        color: PAGE_BACKGROUND,
-        display: "inline-flex",
-        flexDirection: "column",
-        fontSize: compact ? { xs: 22, sm: 28 } : { xs: 30, sm: 34.84 },
-        fontWeight: 600,
-        letterSpacing: "-0.03em",
-        lineHeight: 0.78,
-        whiteSpace: "nowrap",
-      }}
-    >
-      <span>Câncer</span>
-      <span style={{ paddingLeft: compact ? 25 : 25 }}>de Pênis</span>
-    </Typography>
-  );
-}
-
-function AdminHeader({
-  onLogout,
-  loggingOut,
-}: {
-  onLogout: () => void;
-  loggingOut: boolean;
-}) {
-  return (
-    <Box
-      component="header"
-      sx={{
-        bgcolor: FOREST_GREEN,
-        color: PAGE_BACKGROUND,
-        width: "100%",
-      }}
-    >
-      <Box
-        sx={{
-          alignItems: "center",
-          display: "flex",
-          justifyContent: "space-between",
-          minHeight: { xs: 64, sm: 72 },
-          px: { xs: 2, sm: 4.6 },
-          width: "100%",
-        }}
-      >
-        <Link
-          component={NextLink}
-          href="/admin/formularios"
-          underline="none"
-          aria-label="Câncer de Pênis, Meus Formulários"
-          sx={{ display: "inline-flex" }}
-        >
-          <Brand />
-        </Link>
-
-        <Box
-          component="nav"
-          aria-label="Navegação administrativa"
-          sx={{ alignItems: "center", display: "flex", gap: { xs: 1.5, sm: 9 } }}
-        >
-          <Link
-            component={NextLink}
-            href="/admin"
-            underline="none"
-            sx={{
-              color: "inherit",
-              display: { xs: "none", sm: "inline-flex" },
-              fontSize: { sm: 16, md: 18 },
-              fontWeight: 600,
-              px: 0.5,
-              py: 1,
-            }}
-          >
-            Início
-          </Link>
-          <Link
-            component={NextLink}
-            href="/admin/formularios"
-            underline="always"
-            aria-current="page"
-            sx={{
-              color: "inherit",
-              fontSize: { xs: 14, sm: 18, md: 20 },
-              fontWeight: 600,
-              textUnderlineOffset: "4px",
-              whiteSpace: "nowrap",
-            }}
-          >
-            Meus Formulários
-          </Link>
-          <Tooltip title="Sair">
-            <span>
-              <IconButton
-                aria-label="Sair"
-                color="inherit"
-                disabled={loggingOut}
-                onClick={onLogout}
-                sx={{ p: 0.5 }}
-              >
-                <LogoutRoundedIcon sx={{ fontSize: { xs: 28, sm: 34 } }} />
-              </IconButton>
-            </span>
-          </Tooltip>
-        </Box>
-      </Box>
-    </Box>
-  );
-}
-
-function AdminFooter() {
-  return (
-    <Box component="footer" sx={{ bgcolor: FOREST_GREEN, color: PAGE_BACKGROUND, mt: 7, width: "100%" }}>
-      <Box sx={{ borderTop: `1px solid ${PAGE_BACKGROUND}`, opacity: 0.9 }} />
-      <Box sx={{ px: { xs: 3, sm: 8, md: 16 }, py: { xs: 3.5, sm: 4 }, textAlign: "center" }}>
-        <Brand compact />
-        <Typography sx={{ fontSize: 12, lineHeight: 1.3, mt: 2, mx: "auto", maxWidth: 1120 }}>
-          Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
-        </Typography>
-      </Box>
-      <Box sx={{ borderTop: `1px solid ${PAGE_BACKGROUND}`, opacity: 0.9 }} />
-      <Typography sx={{ fontSize: 10, opacity: 0.85, py: 1.2, textAlign: "center" }}>
-        © 2026 Copyright: PETComp Câncer de Pênis
-      </Typography>
-    </Box>
-  );
-}
-
 function statusLabel(form: FormListItem) {
   if (form.status === "published") return "Publicado";
-  return "Rascunho";
+  return "Não publicado";
 }
 
 function statusColor(form: FormListItem) {
@@ -189,9 +67,29 @@ function LoadingRows() {
   );
 }
 
-function FormRow({ form, username }: { form: FormListItem; username: string }) {
+const previewRoutes: Record<string, string> = {
+  PENRISK: "/tela-avaliacao/penrisk",
+  QUALIPEN: "/tela-avaliacao/qualipen",
+};
+
+function FormRow({
+  action,
+  form,
+  onDelete,
+  onStatusChange,
+  username,
+}: {
+  action: string | null;
+  form: FormListItem;
+  onDelete: (form: FormListItem) => void;
+  onStatusChange: (form: FormListItem) => void;
+  username: string;
+}) {
   const status = statusColor(form);
   const incomplete = form.definitionState === "incomplete";
+  const isPublished = form.status === "published";
+  const previewHref = previewRoutes[form.catalogKey.trim().toUpperCase()];
+  const actionBusy = action !== null;
   return (
     <Box
       component="article"
@@ -214,9 +112,9 @@ function FormRow({ form, username }: { form: FormListItem; username: string }) {
         <Box
           sx={{
             alignItems: "center",
-            bgcolor: incomplete ? "#C6CDCE" : "#B7EEE7",
+            bgcolor: isPublished ? "#B7EEE7" : "#C6CDCE",
             borderRadius: "4px",
-            color: incomplete ? "#666969" : FOREST_GREEN,
+            color: isPublished ? FOREST_GREEN : "#666969",
             display: "flex",
             flex: "0 0 40px",
             height: 40,
@@ -264,11 +162,6 @@ function FormRow({ form, username }: { form: FormListItem; username: string }) {
         >
           {statusLabel(form)}
         </Typography>
-        {incomplete && (
-          <Typography sx={{ color: "#666969", fontSize: 10, mt: 0.35 }}>
-            conteúdo pendente
-          </Typography>
-        )}
       </Box>
 
       <Box>
@@ -281,23 +174,53 @@ function FormRow({ form, username }: { form: FormListItem; username: string }) {
       </Box>
 
       <Box sx={{ alignItems: "center", display: "flex", gap: 1, justifyContent: "flex-start" }}>
-        <Tooltip title="Visualização indisponível nesta etapa">
+        <Tooltip title={previewHref ? "Visualizar formulário" : "Visualização disponível em uma próxima etapa para este formulário"}>
           <span>
-            <IconButton aria-label={`Visualizar ${form.title}`} disabled size="small">
-              <VisibilityOutlinedIcon />
+            {previewHref ? (
+              <IconButton
+                aria-label={`Visualizar ${form.title}`}
+                component={NextLink}
+                disabled={actionBusy}
+                href={previewHref}
+                size="small"
+              >
+                <VisibilityOutlinedIcon />
+              </IconButton>
+            ) : (
+              <IconButton aria-label={`Visualizar ${form.title}`} disabled size="small">
+                <VisibilityOutlinedIcon />
+              </IconButton>
+            )}
+          </span>
+        </Tooltip>
+        <Tooltip
+          title={
+            isPublished
+              ? "Retirar formulário da publicação"
+              : incomplete
+                ? "Complete o formulário para publicar"
+                : "Publicar formulário"
+          }
+        >
+          <span>
+            <IconButton
+              aria-label={isPublished ? `Retirar ${form.title} da publicação` : `Publicar ${form.title}`}
+              disabled={actionBusy || (!isPublished && incomplete)}
+              onClick={() => onStatusChange(form)}
+              size="small"
+            >
+              {isPublished ? <UnpublishedRoundedIcon /> : <PublishRoundedIcon />}
             </IconButton>
           </span>
         </Tooltip>
-        <Tooltip title="Publicação/arquivamento ainda não disponível">
+        <Tooltip title={isPublished ? "Retire o formulário da publicação antes de excluí-lo" : "Excluir formulário"}>
           <span>
-            <IconButton aria-label={`Arquivar ${form.title}`} disabled size="small">
-              <ArchiveOutlinedIcon />
-            </IconButton>
-          </span>
-        </Tooltip>
-        <Tooltip title="Exclusão ainda não disponível">
-          <span>
-            <IconButton aria-label={`Excluir ${form.title}`} disabled size="small">
+            <IconButton
+              aria-label={`Excluir ${form.title}`}
+              disabled={isPublished || actionBusy}
+              onClick={() => onDelete(form)}
+              size="small"
+            >
               <DeleteOutlineRoundedIcon />
             </IconButton>
           </span>
@@ -391,6 +314,8 @@ export default function FormsHome({ user }: { user: AuthUser }) {
   const [csrfToken, setCsrfToken] = useState("");
   const [loggingOut, setLoggingOut] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
+  const [action, setAction] = useState<string | null>(null);
+  const [actionError, setActionError] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -457,6 +382,57 @@ export default function FormsHome({ user }: { user: AuthUser }) {
     }
   }
 
+  async function withCsrf<T>(operation: (token: string) => Promise<T>) {
+    let token = csrfToken || (await getSession()).csrfToken;
+    try {
+      return await operation(token);
+    } catch (caught) {
+      if ((caught as Error & { status?: number }).status !== 403) throw caught;
+      token = (await getSession()).csrfToken;
+      setCsrfToken(token);
+      return operation(token);
+    }
+  }
+
+  async function handleStatusChange(form: FormListItem) {
+    const nextStatus = form.status === "published" ? "unpublished" : "published";
+    setAction(`status:${form.id}`);
+    setActionError("");
+    try {
+      const updated = await withCsrf((token) => updateFormStatus(form.id, nextStatus, token));
+      setForms((current) => current.map((item) => item.id === updated.id ? updated : item));
+    } catch (caught) {
+      if (caught instanceof FormsApiError && caught.status === 401) {
+        void router.replace("/admin/login?reason=expired");
+        return;
+      }
+      setActionError(caught instanceof Error ? caught.message : "Não foi possível atualizar o estado do formulário.");
+    } finally {
+      setAction(null);
+    }
+  }
+
+  function handleDelete(form: FormListItem) {
+    if (form.status === "published") return;
+    if (!window.confirm(`Excluir o formulário ${form.title}? Esta ação não pode ser desfeita.`)) return;
+
+    setAction(`delete:${form.id}`);
+    setActionError("");
+    void withCsrf((token) => deleteForm(form.id, token))
+      .then(() => {
+        setPage((currentPage) => currentPage > 1 && forms.length === 1 ? currentPage - 1 : currentPage);
+        setReloadToken((current) => current + 1);
+      })
+      .catch((caught: unknown) => {
+        if (caught instanceof FormsApiError && caught.status === 401) {
+          void router.replace("/admin/login?reason=expired");
+          return;
+        }
+        setActionError(caught instanceof Error ? caught.message : "Não foi possível excluir o formulário.");
+      })
+      .finally(() => setAction(null));
+  }
+
   function handleSearch(value: string) {
     setSearch(value);
     setPage(1);
@@ -494,6 +470,7 @@ export default function FormsHome({ user }: { user: AuthUser }) {
               {error}
             </Alert>
           )}
+          {actionError && <Alert severity="error" sx={{ mb: 2 }}>{actionError}</Alert>}
           <Box sx={{ bgcolor: PAGE_BACKGROUND, border: `1px solid ${BORDER}`, borderRadius: "10px", overflow: "hidden" }}>
             <Box sx={{ alignItems: "center", borderBottom: `1px solid ${BORDER}`, display: "flex", minHeight: { xs: 96, sm: 124 }, px: { xs: 2, sm: 3.8 } }}>
               <OutlinedInput
@@ -536,7 +513,16 @@ export default function FormsHome({ user }: { user: AuthUser }) {
                 <Typography sx={{ color: "#525252", fontSize: 16, fontWeight: 500 }}>Última Atualização</Typography>
                 <Typography sx={{ color: "#525252", fontSize: 16, fontWeight: 500 }}>Ações</Typography>
               </Box>
-              {loading ? <LoadingRows /> : error ? null : forms.length ? forms.map((form) => <FormRow key={form.id} form={form} username={user.username} />) : (
+              {loading ? <LoadingRows /> : error ? null : forms.length ? forms.map((form) => (
+                <FormRow
+                  action={action}
+                  form={form}
+                  key={form.id}
+                  onDelete={handleDelete}
+                  onStatusChange={handleStatusChange}
+                  username={user.username}
+                />
+              )) : (
                 <Box sx={{ alignItems: "center", display: "flex", justifyContent: "center", minHeight: 180, px: 3 }}>
                   <Typography sx={{ color: BODY_TEXT, fontSize: 15 }}>Nenhum formulário encontrado.</Typography>
                 </Box>
