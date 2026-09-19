@@ -17,7 +17,8 @@
     "test:auth:browser": "tsx --test tests/auth.browser.test.ts",
     "db:check": "tsx scripts/db-check.ts",
     "db:configure": "node scripts/db-configure.mjs",
-    "db:runtime": "tsx scripts/db-runtime.ts"
+    "db:runtime": "tsx scripts/db-runtime.ts",
+    "db:seed:formularios": "tsx scripts/seed-formularios.ts"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

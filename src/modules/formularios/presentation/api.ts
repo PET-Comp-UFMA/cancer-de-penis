@@ -1,8 +1,9 @@
-export type FormStatus = "draft" | "published";
+export type FormStatus = "unpublished" | "published";
 export type FormDefinitionState = "incomplete" | "complete";
 
 export type FormListItem = {
   id: string;
+  catalogKey: string;
   title: string;
   description: string;
   status: FormStatus;
@@ -64,4 +65,48 @@ export async function getForms({
   }
 
   return response.json() as Promise<FormsListResponse>;
+}
+
+async function sendFormMutation(
+  formId: string,
+  csrfToken: string,
+  method: "PATCH" | "DELETE",
+  body?: object,
+) {
+  const response = await fetch(`/api/formularios/${encodeURIComponent(formId)}`, {
+    method,
+    credentials: "same-origin",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "X-CSRF-Token": csrfToken,
+    },
+    body: JSON.stringify(body ?? {}),
+  });
+
+  if (!response.ok) {
+    let message = "Não foi possível atualizar o formulário.";
+    try {
+      const payload = (await response.json()) as { error?: string };
+      if (payload.error) message = payload.error;
+    } catch {
+      // Keep the generic message when the server response is not JSON.
+    }
+    throw new FormsApiError(message, response.status);
+  }
+
+  return response;
+}
+
+export async function updateFormStatus(
+  formId: string,
+  status: FormListItem["status"],
+  csrfToken: string,
+): Promise<FormListItem> {
+  const response = await sendFormMutation(formId, csrfToken, "PATCH", { status });
+  return response.json() as Promise<FormListItem>;
+}
+
+export async function deleteForm(formId: string, csrfToken: string): Promise<void> {
+  await sendFormMutation(formId, csrfToken, "DELETE");
 }

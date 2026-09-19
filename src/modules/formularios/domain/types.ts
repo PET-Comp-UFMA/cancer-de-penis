@@ -1,4 +1,4 @@
-export type FormStatus = 'draft' | 'published';
+export type FormStatus = 'unpublished' | 'published';
 export type DefinitionState = 'incomplete' | 'complete';
 
 export type FormListItem = {

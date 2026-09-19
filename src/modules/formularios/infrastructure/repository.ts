@@ -2,6 +2,7 @@ import type { PoolClient } from 'pg';
 import { getPool } from '@/modules/auth/infrastructure/db';
 import type {
   FormListItem,
+  FormStatus,
   ListFormsResult,
   ListPublishedFormsResult,
   PublicFormListItem,
@@ -125,6 +126,81 @@ export async function listPublishedForms(
       page,
       pageSize,
     };
+  } catch (error) {
+    await client.query('rollback').catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function updateFormStatus(
+  ownerId: string,
+  formId: string,
+  status: FormStatus,
+): Promise<FormListItem> {
+  const client = await getPool().connect();
+  try {
+    await client.query('begin');
+    await client.query('select set_config($1, $2, true)', ['app.current_user_id', ownerId]);
+    const current = await client.query<FormRow>(
+      `select id, catalog_key, title, description, status, definition_state, created_at, updated_at
+         from app_private.admin_forms
+        where id = $1 and owner_id = $2
+        for update`,
+      [formId, ownerId],
+    );
+    const existing = current.rows[0];
+    if (!existing) throw new Error('FORM_NOT_FOUND');
+    if (status === 'published' && existing.definition_state !== 'complete') {
+      throw new Error('FORM_NOT_READY');
+    }
+
+    if (existing.status === status) {
+      await client.query('commit');
+      return toListItem(existing);
+    }
+
+    const updated = await client.query<FormRow>(
+      `update app_private.admin_forms
+          set status = $3, updated_at = now()
+        where id = $1 and owner_id = $2
+        returning id, catalog_key, title, description, status, definition_state, created_at, updated_at`,
+      [formId, ownerId, status],
+    );
+    await client.query('commit');
+    const row = updated.rows[0];
+    if (!row) throw new Error('FORM_NOT_FOUND');
+    return toListItem(row);
+  } catch (error) {
+    await client.query('rollback').catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function deleteOwnedForm(ownerId: string, formId: string): Promise<void> {
+  const client = await getPool().connect();
+  try {
+    await client.query('begin');
+    await client.query('select set_config($1, $2, true)', ['app.current_user_id', ownerId]);
+    const current = await client.query<{ status: FormStatus }>(
+      `select status
+         from app_private.admin_forms
+        where id = $1 and owner_id = $2
+        for update`,
+      [formId, ownerId],
+    );
+    const existing = current.rows[0];
+    if (!existing) throw new Error('FORM_NOT_FOUND');
+    if (existing.status === 'published') throw new Error('FORM_PUBLISHED_CANNOT_DELETE');
+
+    await client.query(
+      'delete from app_private.admin_forms where id = $1 and owner_id = $2',
+      [formId, ownerId],
+    );
+    await client.query('commit');
   } catch (error) {
     await client.query('rollback').catch(() => undefined);
     throw error;
