@@ -1,11 +1,12 @@
 import type { GetServerSidePropsContext, GetServerSidePropsResult, NextApiResponse } from 'next';
-import type { SessionUser } from '../domain/types';
+import type { AuthRole, SessionUser } from '../domain/types';
 import { findSession } from '../infrastructure/repository';
 import { noStore, requestToken } from './cookies';
 
 type Props = { user: SessionUser; mustChangePassword: boolean };
 export async function requireAdminPage(
-  context: GetServerSidePropsContext, options: { allowPasswordChange?: boolean } = {},
+  context: GetServerSidePropsContext,
+  options: { allowPasswordChange?: boolean; requiredRole?: AuthRole } = {},
 ): Promise<GetServerSidePropsResult<Props>> {
   noStore(context.res as NextApiResponse);
   try {
@@ -15,7 +16,7 @@ export async function requireAdminPage(
     if (session.user.mustChangePassword && !options.allowPasswordChange) {
       return { redirect: { destination: '/admin/alterar-senha', permanent: false } };
     }
-    // The landing page contains no form data. Future form APIs require role admin.
+    if (options.requiredRole && !session.user.roles.includes(options.requiredRole)) return { notFound: true };
     if (!session.user.roles.some(role => role === 'admin' || role === 'responsavel')) return { notFound: true };
     return { props: { user: session.user, mustChangePassword: session.user.mustChangePassword } };
   } catch {
