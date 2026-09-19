@@ -27,6 +27,13 @@ test('browser: temporary login, required password change, logout and mobile layo
     await page.goto(`${base}/admin/formularios`);
     await expect(page).toHaveURL(/\/admin\/login/);
     await expect(page.getByRole('button', { name: 'Entrar', exact: true })).toBeEnabled();
+    await expect(page.getByLabel('Nome de usuário', { exact: true })).toHaveAttribute('maxlength', '64');
+    const passwordInput = page.getByLabel('Senha', { exact: true });
+    await expect(passwordInput).toHaveAttribute('maxlength', '128');
+    await page.getByRole('button', { name: 'Mostrar senha', exact: true }).click();
+    await expect(passwordInput).toHaveAttribute('type', 'text');
+    await page.getByRole('button', { name: 'Ocultar senha', exact: true }).click();
+    await expect(passwordInput).toHaveAttribute('type', 'password');
     await page.getByLabel('Nome de usuário', { exact: true }).fill('browser.admin');
     await page.getByLabel('Senha', { exact: true }).fill(password);
     await page.getByRole('button', { name: 'Entrar', exact: true }).click();

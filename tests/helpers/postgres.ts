@@ -96,7 +96,7 @@ export async function startNext(databaseUrl: string, origin: string) {
   try { await waitForHttp(`${origin}/api/auth/session`, child); } catch (error) {
     if (child.exitCode !== null || child.pid === undefined) throw error;
     const closed = once(child, 'close');
-    if (child.pid !== undefined) await run('taskkill.exe', ['/PID', String(child.pid), '/T', '/F']).catch(() => child.kill());
+    await run('taskkill.exe', ['/PID', String(child.pid), '/T', '/F']).catch(() => child.kill());
     await closed.catch(() => undefined);
     throw error;
   }

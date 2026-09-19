@@ -8,7 +8,6 @@ import {
   CardMedia,
   CardContent,
   Button,
-  Chip,
 } from "@mui/material";
 import Header from "@/shared/components/Header";
 import Footer from "@/shared/components/Footer";

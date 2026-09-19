@@ -1,6 +1,6 @@
 import Head from "next/head";
 import Link from "next/link";
-import { Box, Container, Typography, Card, CardMedia, CardContent, Button, Chip } from "@mui/material";
+import { Box, Container, Typography, Card, CardMedia, CardContent, Button } from "@mui/material";
 import Header from "@/shared/components/Header";
 import Footer from "@/shared/components/Footer";
 export default function Penrisk() {
