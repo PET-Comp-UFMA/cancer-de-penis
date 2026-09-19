@@ -3,59 +3,14 @@ import {
   Box,
   Container,
   Typography,
-  Card,
-  CardMedia,
-  CardContent,
   Link,
 } from "@mui/material";
-import Grid from "@mui/material/Grid";
 import Header from "@/shared/components/Header";
 import Footer from "@/shared/components/Footer";
+import AuthorsGrid from "./AuthorsGrid";
+import { workAuthors } from "../domain/authors";
 
 export default function Autores() {
-  const autores = [
-    {
-      nome: "Chriss Taylor",
-      especialidade: "Internal Medicine",
-      imagem: "/autor1.png",
-    },
-    {
-      nome: "Jonshon Aliven",
-      especialidade: "Internal Medicine",
-      imagem: "/autor2.png",
-    },
-    {
-      nome: "Triklen Munaska",
-      especialidade: "Internal Medicine",
-      imagem: "/autor3.png",
-    },
-    {
-      nome: "Khabian Jerry",
-      especialidade: "Internal Medicine",
-      imagem: "/autor4.png",
-    },
-    {
-      nome: "Chriss Taylor",
-      especialidade: "Internal Medicine",
-      imagem: "/autor5.png",
-    },
-    {
-      nome: "Jonshon Aliven",
-      especialidade: "Internal Medicine",
-      imagem: "/autor6.png",
-    },
-    {
-      nome: "Triklen Munaska",
-      especialidade: "Internal Medicine",
-      imagem: "/autor7.png",
-    },
-    {
-      nome: "Triklen Munaska",
-      especialidade: "Internal Medicine",
-      imagem: "/autor8.png",
-    },
-  ];
-
   return (
     <>
       <Head>
@@ -104,15 +59,16 @@ export default function Autores() {
       <Box sx={{ bgcolor: "#FFFFFF", py: 4 }}>
         <Container maxWidth="lg">
           <Typography
-            variant="h4"
+            variant="h3"
             sx={{
-              fontWeight: 700,
-              color: "#1E6B73",
+              fontWeight: 800,
+              color: "#1F6C75",
               textAlign: "center",
-              mb: 1,
+              mb: 4,
+              fontSize: { xs: "2rem", md: "3rem" },
             }}
           >
-            Autores ...
+            Autores do Trabalho
           </Typography>
         </Container>
       </Box>
@@ -120,55 +76,7 @@ export default function Autores() {
       {/* Grid de Autores */}
       <Box sx={{ py: 6 }}>
         <Container maxWidth="lg">
-          <Grid container spacing={4}>
-            {autores.map((autor, index) => (
-              <Grid key={index} size={{ xs: 12, sm: 6, md: 3 }}>
-                <Card
-                  sx={{
-                    boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-                    borderRadius: 2,
-                    transition: "transform 0.3s ease, box-shadow 0.3s ease",
-                    "&:hover": {
-                      transform: "translateY(-8px)",
-                      boxShadow: "0 8px 20px rgba(0,0,0,0.15)",
-                    },
-                  }}
-                >
-                  <CardMedia
-                    component="img"
-                    height="240"
-                    image={autor.imagem}
-                    alt={autor.nome}
-                    sx={{
-                      objectFit: "cover",
-                    }}
-                  />
-                  <CardContent sx={{ textAlign: "center", py: 3 }}>
-                    <Typography
-                      variant="h6"
-                      sx={{
-                        fontWeight: 700,
-                        color: "#1E6B73",
-                        mb: 0.5,
-                        fontSize: "1.1rem",
-                      }}
-                    >
-                      {autor.nome}
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        color: "#5FA8B0",
-                        fontSize: "0.9rem",
-                      }}
-                    >
-                      {autor.especialidade}
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
+          <AuthorsGrid authors={workAuthors} />
         </Container>
       </Box>
 
