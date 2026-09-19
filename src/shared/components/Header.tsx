@@ -17,7 +17,7 @@ import { useState } from "react";
 
 const menuItems = [
   { label: "Início", href: "/" },
-  { label: "Avaliação de Risco", href: "/tela-avaliacao/tela-avaliacao" },
+  { label: "Ferramentas de Avaliação", href: "/tela-avaliacao" },
   { label: "Autores", href: "/autores" },
   { label: "Centros de Atendimento", href: "/locais" },
 ];
