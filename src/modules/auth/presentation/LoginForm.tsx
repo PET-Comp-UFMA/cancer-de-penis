@@ -22,7 +22,7 @@ export default function LoginForm() {
     try {
       const session = await getSession();
       setCsrfToken(session.csrfToken);
-      if (session.user) await router.replace(session.mustChangePassword ? "/admin/alterar-senha" : "/admin/formularios");
+      if (session.user) await router.replace(session.mustChangePassword ? "/admin/alterar-senha" : "/admin");
     } catch { setBootstrapError("Não foi possível verificar a sessão."); }
     finally { setLoading(false); }
   }, [router]);
@@ -44,7 +44,7 @@ export default function LoginForm() {
       if (!token) {
         const session = await getSession();
         setCsrfToken(session.csrfToken); token = session.csrfToken;
-        if (session.user) { await router.replace(session.mustChangePassword ? "/admin/alterar-senha" : "/admin/formularios"); return; }
+        if (session.user) { await router.replace(session.mustChangePassword ? "/admin/alterar-senha" : "/admin"); return; }
       }
       let result;
       try {
@@ -53,10 +53,10 @@ export default function LoginForm() {
         if ((caught as Error & { status?: number }).status !== 403) throw caught;
         const session = await getSession();
         setCsrfToken(session.csrfToken);
-        if (session.user) { await router.replace(session.mustChangePassword ? "/admin/alterar-senha" : "/admin/formularios"); return; }
+        if (session.user) { await router.replace(session.mustChangePassword ? "/admin/alterar-senha" : "/admin"); return; }
         result = await login(username.trim(), password, session.csrfToken);
       }
-      await router.replace(result.redirectTo || (result.mustChangePassword ? "/admin/alterar-senha" : "/admin/formularios"));
+      await router.replace(result.redirectTo || (result.mustChangePassword ? "/admin/alterar-senha" : "/admin"));
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Não foi possível entrar."); }
     finally { setLoading(false); }
   }

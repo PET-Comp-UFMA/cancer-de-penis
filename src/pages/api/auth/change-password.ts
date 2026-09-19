@@ -24,7 +24,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const csrfToken = setCsrf(res, result.token);
     return res.status(200).json({
       user: { id: result.user.id, username: result.user.username, roles: result.user.roles },
-      mustChangePassword: false, redirectTo: '/admin/formularios', csrfToken,
+      mustChangePassword: false, redirectTo: '/admin', csrfToken,
     });
   } catch (error) { return authError(res, error); }
 }

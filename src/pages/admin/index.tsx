@@ -1,3 +1,10 @@
 import type { GetServerSideProps } from "next";
-export const getServerSideProps: GetServerSideProps = async () => ({ redirect: { destination: "/admin/formularios", permanent: false } });
-export default function AdminIndex() { return null; }
+import AdminHome from "@/modules/admin/presentation/AdminHome";
+import { requireAdminPage } from "@/modules/auth/server/page-auth";
+
+export const getServerSideProps: GetServerSideProps = async (context) =>
+  requireAdminPage(context, { requiredRole: "admin" });
+
+export default function AdminIndex() {
+  return <AdminHome />;
+}

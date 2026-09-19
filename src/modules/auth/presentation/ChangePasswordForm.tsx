@@ -39,7 +39,7 @@ export default function ChangePasswordForm({ initialCsrfToken = "" }: { initialC
         result = await changePassword(currentPassword, newPassword, session.csrfToken);
       }
       setSuccess("Senha alterada com sucesso.");
-      await router.replace(result.redirectTo || "/admin/formularios");
+      await router.replace(result.redirectTo || "/admin");
     } catch (caught) {
       const status = (caught as Error & { status?: number }).status;
       if (status === 401) await router.replace("/admin/login?reason=expired");

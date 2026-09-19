@@ -21,7 +21,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({
       user: { id: result.user.id, username: result.user.username, roles: result.user.roles },
       mustChangePassword: result.user.mustChangePassword,
-      redirectTo: result.user.mustChangePassword ? '/admin/alterar-senha' : '/admin/formularios', csrfToken,
+      redirectTo: result.user.mustChangePassword ? '/admin/alterar-senha' : '/admin', csrfToken,
     });
   } catch (error) { return authError(res, error); }
 }
