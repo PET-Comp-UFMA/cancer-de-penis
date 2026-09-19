@@ -63,9 +63,9 @@ export default function FormHeader({ form }: FormHeaderProps) {
           sx={{
             display: "flex",
             alignItems: "center",
-            justifyContent: { xs: "flex-start", md: "space-between" },
+            justifyContent: "flex-start",
             flex: 1,
-            gap: { xs: 2, sm: 3, md: 7 },
+            gap: { xs: 2, sm: 3, md: 5 },
             overflowX: "auto",
             "&::-webkit-scrollbar": { display: "none" },
           }}

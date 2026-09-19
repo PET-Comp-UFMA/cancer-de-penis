@@ -13,13 +13,10 @@ export default function FormInstanceHome({ form }: FormInstanceHomeProps) {
     <FormInstanceLayout form={form} pageTitle={`${form.title} - Câncer de Pênis`}>
       <Box
         sx={{
-          position: "relative",
-          display: "flex",
-          flexDirection: { xs: "column", md: "row" },
-          alignItems: "stretch",
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", md: "56% 44%" },
           minHeight: { xs: 600, md: 662 },
-          maxWidth: 1440,
-          mx: "auto",
+          width: "100%",
           overflow: "hidden",
           bgcolor: "#FFFFFF",
           boxShadow: "0 1px 9px rgba(0,0,0,0.16)",
@@ -27,16 +24,12 @@ export default function FormInstanceHome({ form }: FormInstanceHomeProps) {
       >
         <Box
           sx={{
-            position: { xs: "relative", md: "absolute" },
-            top: 0,
-            left: 0,
-            width: { xs: "100%", md: "54%" },
-            height: { xs: 300, md: "100%" },
-            flexShrink: 0,
+            width: "100%",
+            minHeight: { xs: 300, md: 662 },
             overflow: "hidden",
             clipPath: {
               xs: "none",
-              md: "ellipse(86% 90% at 5% 50%)",
+              md: "ellipse(94% 92% at 3% 50%)",
             },
           }}
         >
@@ -56,18 +49,14 @@ export default function FormInstanceHome({ form }: FormInstanceHomeProps) {
 
         <Box
           sx={{
-            position: { xs: "relative", md: "absolute" },
-            zIndex: 1,
-            top: { md: "50%" },
-            right: { md: "8%" },
-            transform: { md: "translateY(-50%)" },
-            width: { xs: "100%", md: "45%" },
-            px: { xs: 3, md: 0 },
+            minWidth: 0,
+            px: { xs: 3, md: 5 },
             py: { xs: 5, md: 0 },
             display: "flex",
             flexDirection: "column",
-            alignItems: { xs: "center", md: "flex-start" },
-            textAlign: { xs: "center", md: "left" },
+            justifyContent: "center",
+            alignItems: "flex-start",
+            textAlign: "left",
           }}
         >
           <Typography
@@ -77,6 +66,7 @@ export default function FormInstanceHome({ form }: FormInstanceHomeProps) {
               lineHeight: 1.25,
               fontWeight: 700,
               mb: 1,
+              whiteSpace: "nowrap",
             }}
           >
             Avaliação e Saúde
