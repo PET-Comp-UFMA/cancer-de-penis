@@ -17,6 +17,8 @@ import {
   getFormBasePath,
   getFormResultPath,
 } from "../domain/form-definitions";
+import { computeScore, isScorable, type ScoreAnswer } from "../domain/scoring";
+import { useScoringSession } from "./ScoringSessionContext";
 
 type FormQuestionnaireProps = {
   form: FormDefinition;
@@ -75,6 +77,7 @@ function QuestionProgress({ currentIndex, total }: { currentIndex: number; total
 
 export default function FormQuestionnaire({ form }: FormQuestionnaireProps) {
   const router = useRouter();
+  const { publishResult, publishError, clearResult } = useScoringSession();
   const [currentIndex, setCurrentIndex] = useState(0);
   const questionHeadingRef = useRef<HTMLHeadingElement>(null);
   const [answers, setAnswers] = useState<Answer[]>(() =>
@@ -84,6 +87,12 @@ export default function FormQuestionnaire({ form }: FormQuestionnaireProps) {
   useEffect(() => {
     questionHeadingRef.current?.focus();
   }, [currentIndex]);
+
+  useEffect(() => {
+    // A fresh attempt invalidates any leftover result from a previous one.
+    clearResult(form.catalogKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.catalogKey]);
 
   if (form.questionnaireStatus !== "ready" || form.questions.length === 0) {
     return (
@@ -118,6 +127,17 @@ export default function FormQuestionnaire({ form }: FormQuestionnaireProps) {
     if (selectedAnswer === null) return;
 
     if (isLastQuestion) {
+      if (isScorable(form)) {
+        const scoreAnswers: ScoreAnswer[] = form.questions.map((q, index) => ({
+          questionId: q.id,
+          optionId: (index === currentIndex ? selectedAnswer : answers[index]) as string,
+        }));
+        try {
+          publishResult(form.catalogKey, computeScore(form, scoreAnswers));
+        } catch (error) {
+          publishError(form.catalogKey, error instanceof Error ? error.message : "SCORE_UNKNOWN_ERROR");
+        }
+      }
       router.push(getFormResultPath(form));
       return;
     }

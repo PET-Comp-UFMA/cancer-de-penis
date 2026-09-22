@@ -6,7 +6,15 @@ export type FormQuestion = {
   id: string;
   prompt: string;
   answerType: "boolean" | "single-choice";
-  options?: readonly { id: string; label: string }[];
+  options?: readonly { id: string; label: string; score: number | null }[];
+};
+
+export type FormResultBand = {
+  id: string;
+  minScore: number | null;
+  maxScore: number | null;
+  risk: string;
+  description: string;
 };
 
 export type FormDefinition = {
@@ -17,6 +25,7 @@ export type FormDefinition = {
   heroImage: string;
   authors: readonly Author[];
   questions: readonly FormQuestion[];
+  resultBands: readonly FormResultBand[];
   questionnaireStatus: "ready" | "pending";
 };
 
@@ -98,6 +107,10 @@ const formDefinitions: Record<string, FormDefinition> = {
     heroImage: "/rounded.svg",
     authors: workAuthors,
     questions: penriskQuestions,
+    // Kept scoreless — no official PENRISK weights/faixas exist yet; do not
+    // fabricate them (see docs/backend-autenticacao.md "pendências clínicas").
+    // isScorable() in domain/scoring.ts correctly reports this as not scorable.
+    resultBands: [],
     questionnaireStatus: "ready",
   },
   qualipen: {
@@ -109,6 +122,9 @@ const formDefinitions: Record<string, FormDefinition> = {
     heroImage: "/Rounded-Rectangle.svg",
     authors: workAuthors,
     questions: [],
+    // Kept scoreless — no official QUALIPEN questions/weights/faixas exist
+    // yet; do not fabricate them. See resultBands comment on `penrisk` above.
+    resultBands: [],
     questionnaireStatus: "pending",
   },
 };
@@ -161,7 +177,18 @@ export function toPublicDefinition(value: {
       id: question.id,
       prompt: question.prompt,
       answerType: "single-choice",
-      options: question.alternatives.map((alternative) => ({ id: alternative.id, label: alternative.label })),
+      options: question.alternatives.map((alternative) => ({
+        id: alternative.id,
+        label: alternative.label,
+        score: alternative.score,
+      })),
+    })),
+    resultBands: definition.resultBands.map((band) => ({
+      id: band.id,
+      minScore: band.minScore,
+      maxScore: band.maxScore,
+      risk: band.risk,
+      description: band.description,
     })),
     questionnaireStatus: definition.questions.length > 0 ? "ready" : "pending",
   };
