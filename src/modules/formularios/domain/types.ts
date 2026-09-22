@@ -22,6 +22,10 @@ export type FormQuestion = {
   alternatives: FormAlternative[];
 };
 
+// minScore/maxScore are a percentage of the form's producible score range
+// (0–100, closed-closed), not a raw score — e.g. { minScore: 0, maxScore: 33 }
+// for "até 33%". See src/modules/instrumentos/domain/scoring.ts for how a
+// raw score is normalized to this percentage and matched against these bands.
 export type FormResultBand = {
   id: string;
   minScore: number | null;

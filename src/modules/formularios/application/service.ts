@@ -132,6 +132,8 @@ export function validateFormDefinition(value: unknown): FormDefinition {
     const item = band as Record<string, unknown>;
     if (!validId(item.id) || !validFiniteOrNull(item.minScore) || !validFiniteOrNull(item.maxScore)
       || !validText(item.risk) || !validText(item.description)
+      || (item.minScore !== null && (item.minScore < 0 || item.minScore > 100))
+      || (item.maxScore !== null && (item.maxScore < 0 || item.maxScore > 100))
       || (item.minScore !== null && item.maxScore !== null && item.minScore > item.maxScore)) throw new Error('FORM_INVALID_DEFINITION');
     return { id: item.id, minScore: item.minScore, maxScore: item.maxScore, risk: item.risk, description: item.description };
   });
@@ -140,6 +142,21 @@ export function validateFormDefinition(value: unknown): FormDefinition {
     schemaVersion: 1, title: input.title, description: input.description,
     imageDataUrl: input.imageDataUrl as string | null, authors, questions, resultBands,
   };
+}
+
+// Bands are a percentage of the producible score range (0–100, closed on
+// both ends — see the FormResultBand comment in domain/types.ts), so
+// coverage is checked against 0–100 directly rather than a raw score range.
+// Since the scoring engine only ever produces whole-number percentages
+// (Math.round in scoreToPercentage), adjacent bands are expected one point
+// apart — e.g. [0,33] then [34,66] — so this checks band[i].maxScore + 1 ===
+// band[i+1].minScore once sorted, catching both gaps and overlaps.
+function bandsCoverPercentageRange(definition: FormDefinition): boolean {
+  const sorted = [...definition.resultBands].sort((a, b) => (a.minScore as number) - (b.minScore as number));
+  for (let index = 0; index < sorted.length - 1; index += 1) {
+    if ((sorted[index].maxScore as number) + 1 !== sorted[index + 1].minScore) return false;
+  }
+  return sorted[0].minScore === 0 && sorted[sorted.length - 1].maxScore === 100;
 }
 
 export function definitionState(definition: FormDefinition): 'incomplete' | 'complete' {
@@ -158,7 +175,8 @@ export function definitionState(definition: FormDefinition): 'incomplete' | 'com
       && band.maxScore !== null
       && Number.isFinite(band.minScore)
       && Number.isFinite(band.maxScore)
-      && band.minScore <= band.maxScore);
+      && band.minScore <= band.maxScore)
+    && (!questionsComplete || bandsCoverPercentageRange(definition));
   return definition.title.trim().length > 0 && questionsComplete && resultBandsComplete
     ? 'complete'
     : 'incomplete';

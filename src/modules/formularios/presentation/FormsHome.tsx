@@ -12,6 +12,7 @@ import {
   Box,
   Button,
   CircularProgress,
+  Dialog,
   IconButton,
   InputAdornment,
   Link,
@@ -67,11 +68,6 @@ function LoadingRows() {
   );
 }
 
-const previewRoutes: Record<string, string> = {
-  PENRISK: "/tela-avaliacao/penrisk",
-  QUALIPEN: "/tela-avaliacao/qualipen",
-};
-
 function FormRow({
   action,
   form,
@@ -88,7 +84,10 @@ function FormRow({
   const status = statusColor(form);
   const incomplete = form.definitionState === "incomplete";
   const isPublished = form.status === "published";
-  const previewHref = previewRoutes[form.catalogKey.trim().toUpperCase()];
+  // The public route resolves any published catalogKey generically (see
+  // getServerPublicFormDefinition) — preview just needs the form published,
+  // not a hardcoded allowlist of catalog keys.
+  const previewHref = isPublished ? `/tela-avaliacao/${form.catalogKey.trim().toLowerCase()}` : undefined;
   const actionBusy = action !== null;
   return (
     <Box
@@ -174,7 +173,7 @@ function FormRow({
       </Box>
 
       <Box sx={{ alignItems: "center", display: "flex", gap: 1, justifyContent: "flex-start" }}>
-        <Tooltip title={previewHref ? "Visualizar formulário" : "Visualização disponível em uma próxima etapa para este formulário"}>
+        <Tooltip title={previewHref ? "Visualizar formulário" : "Publique o formulário para poder visualizá-lo"}>
           <span>
             {previewHref ? (
               <IconButton
@@ -227,6 +226,65 @@ function FormRow({
         </Tooltip>
       </Box>
     </Box>
+  );
+}
+
+function DeleteFormDialog({
+  form,
+  busy,
+  onCancel,
+  onConfirm,
+}: {
+  form: FormListItem | null;
+  busy: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <Dialog
+      onClose={onCancel}
+      open={Boolean(form)}
+      slotProps={{ paper: { sx: { borderRadius: "17px", maxWidth: 560, p: { xs: 3, sm: 4 }, position: "relative", width: "100%" } } }}
+    >
+      <IconButton aria-label="Fechar" disabled={busy} onClick={onCancel} sx={{ position: "absolute", right: 16, top: 16 }}>
+        <Box alt="" component="img" src="/fechar.svg" sx={{ height: 22, width: 22 }} />
+      </IconButton>
+      <Box sx={{ alignItems: "center", display: "flex", gap: 2, mb: 3 }}>
+        <Box alt="" component="img" src="/alerta-exclusao.svg" sx={{ flexShrink: 0, height: 52, width: 61 }} />
+        <Typography component="h2" sx={{ color: FOREST_GREEN, fontSize: { xs: 24, sm: 30 }, fontWeight: 700 }}>
+          Excluir formulário
+        </Typography>
+      </Box>
+      <Typography sx={{ color: BODY_TEXT, fontSize: { xs: 16, sm: 20 }, mb: 2 }}>
+        Tem certeza que deseja excluir esse formulário?
+      </Typography>
+      <Typography sx={{ color: BODY_TEXT, fontSize: { xs: 16, sm: 20 }, mb: 2 }}>
+        Esta ação irá remover permanentemente a estrutura e as configurações do formulário{" "}
+        <Box component="span" sx={{ fontWeight: 700 }}>
+          &ldquo;{form?.title}&rdquo;
+        </Box>
+        .
+      </Typography>
+      <Typography sx={{ color: BODY_TEXT, fontSize: { xs: 16, sm: 20 }, mb: 4 }}>
+        Essa ação não poderá ser desfeita.
+      </Typography>
+      <Box sx={{ display: "flex", gap: 2, justifyContent: "flex-end" }}>
+        <Button
+          disabled={busy}
+          onClick={onCancel}
+          sx={{ border: `1px solid ${FOREST_GREEN}`, borderRadius: "5px", color: FOREST_GREEN, fontSize: 18, px: 3, py: 1.25, textTransform: "none" }}
+        >
+          Cancelar
+        </Button>
+        <Button
+          disabled={busy}
+          onClick={onConfirm}
+          sx={{ bgcolor: "#F52323", borderRadius: "5px", color: "#FAFCFC", fontSize: 17, px: 3, py: 1.25, textTransform: "none", "&:hover": { bgcolor: "#D81E1E" } }}
+        >
+          {busy ? "Excluindo..." : "Excluir Formulário"}
+        </Button>
+      </Box>
+    </Dialog>
   );
 }
 
@@ -316,6 +374,7 @@ export default function FormsHome({ user }: { user: AuthUser }) {
   const [reloadToken, setReloadToken] = useState(0);
   const [action, setAction] = useState<string | null>(null);
   const [actionError, setActionError] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<FormListItem | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -414,12 +473,22 @@ export default function FormsHome({ user }: { user: AuthUser }) {
 
   function handleDelete(form: FormListItem) {
     if (form.status === "published") return;
-    if (!window.confirm(`Excluir o formulário ${form.title}? Esta ação não pode ser desfeita.`)) return;
+    setDeleteTarget(form);
+  }
 
+  function cancelDelete() {
+    if (action) return;
+    setDeleteTarget(null);
+  }
+
+  function confirmDelete() {
+    const form = deleteTarget;
+    if (!form) return;
     setAction(`delete:${form.id}`);
     setActionError("");
     void withCsrf((token) => deleteForm(form.id, token))
       .then(() => {
+        setDeleteTarget(null);
         setPage((currentPage) => currentPage > 1 && forms.length === 1 ? currentPage - 1 : currentPage);
         setReloadToken((current) => current + 1);
       })
@@ -566,6 +635,12 @@ export default function FormsHome({ user }: { user: AuthUser }) {
         </Box>
       </Box>
       <AdminFooter />
+      <DeleteFormDialog
+        busy={Boolean(deleteTarget) && action === `delete:${deleteTarget?.id}`}
+        form={deleteTarget}
+        onCancel={cancelDelete}
+        onConfirm={confirmDelete}
+      />
     </Box>
   );
 }

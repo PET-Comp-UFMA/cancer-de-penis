@@ -15,6 +15,7 @@
     "auth:secret": "node scripts/auth-secret.mjs",
     "test:auth": "tsx --test --test-concurrency=1 tests/auth.integration.test.ts",
     "test:auth:browser": "tsx --test tests/auth.browser.test.ts",
+    "test:scoring": "tsx --test tests/scoring.test.ts",
     "db:check": "tsx scripts/db-check.ts",
     "db:configure": "node scripts/db-configure.mjs",
     "db:runtime": "tsx scripts/db-runtime.ts",
