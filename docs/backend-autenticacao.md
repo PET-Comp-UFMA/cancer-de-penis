@@ -6,6 +6,12 @@ O backend funciona nas rotas de servidor do próprio Next.js. O Supabase fornece
 
 Contas e sessões ficam no schema privado `app_private`, que não deve ser exposto pela API pública do Supabase. Respostas de pacientes e resultados individuais não são armazenados. As tabelas e telas de gestão dos formulários pertencem à próxima etapa.
 
+## Estado atual da gestao de formularios (22/09/2026)
+
+A primeira fatia do editor administrativo foi implementada. As migrations `005_formularios_definicao.sql` e `006_formularios_publicacao_snapshot.sql` acrescentam a definicao editavel, a revisao otimista e o snapshot publicado em `app_private.admin_forms`; a API usa `POST /api/formularios`, `GET/PATCH /api/formularios/:id` e `GET /api/formularios/publicados/:catalogKey`. A interface fica em `/admin/formularios/novo` e `/admin/formularios/:id`.
+
+O formulario pode ser salvo como `unpublished`, editado depois de publicado sem alterar a versao publica e publicado novamente quando titulo, perguntas, alternativas, pontuacoes e faixas estiverem completos. A publicacao copia a definicao para um snapshot fixo; a listagem e as rotas publicas leem esse snapshot, e a despublicacao retira a disponibilidade sem apagar o rascunho. A imagem aceita nesta etapa e uma data URL rasterizada limitada a aproximadamente 2 MB; a migracao para Storage ainda depende da politica de MIME, tamanho, substituicao e limpeza. A interpretacao clinica das faixas ainda depende das regras oficiais de cada instrumento.
+
 ## 1. Criar o projeto no Supabase
 
 1. Entre em [Supabase](https://supabase.com/dashboard), crie sua conta e uma organização, se solicitado.
