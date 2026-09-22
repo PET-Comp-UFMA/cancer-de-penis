@@ -125,9 +125,9 @@ function FormRow({
           <DescriptionOutlinedIcon sx={{ fontSize: 24 }} />
         </Box>
         <Box sx={{ minWidth: 0 }}>
-          <Typography sx={{ color: FOREST_GREEN, fontSize: 17, fontWeight: 600, lineHeight: 1.35 }}>
+          <Link component={NextLink} href={`/admin/formularios/${form.id}`} underline="hover" sx={{ color: FOREST_GREEN, fontSize: 17, fontWeight: 600, lineHeight: 1.35 }}>
             {form.title}
-          </Typography>
+          </Link>
           <Typography
             sx={{
               color: BODY_TEXT,
@@ -399,7 +399,7 @@ export default function FormsHome({ user }: { user: AuthUser }) {
     setAction(`status:${form.id}`);
     setActionError("");
     try {
-      const updated = await withCsrf((token) => updateFormStatus(form.id, nextStatus, token));
+      const updated = await withCsrf((token) => updateFormStatus(form.id, nextStatus, token, form.revision));
       setForms((current) => current.map((item) => item.id === updated.id ? updated : item));
     } catch (caught) {
       if (caught instanceof FormsApiError && caught.status === 401) {
@@ -537,11 +537,12 @@ export default function FormsHome({ user }: { user: AuthUser }) {
                 <Pagination onChange={setPage} page={page} totalPages={totalPages} />
               </Box>
               <Box sx={{ display: "flex", flex: { sm: 1 }, justifyContent: { xs: "center", sm: "flex-end" }, order: { xs: 1, sm: 2 } }}>
-                <Tooltip title="Criação de formulários ainda não disponível">
+                <Tooltip title="Criar um novo formulário">
                   <span>
                     <Button
-                      aria-label="Novo formulário, indisponível"
-                      disabled
+                      aria-label="Novo formulário"
+                      component={NextLink}
+                      href="/admin/formularios/novo"
                       startIcon={<AddRoundedIcon />}
                       sx={{
                         bgcolor: FOREST_GREEN,

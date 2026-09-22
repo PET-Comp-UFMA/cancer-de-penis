@@ -1,7 +1,7 @@
 export type Author = {
   name: string;
   specialty: string;
-  image: string;
+  image?: string;
 };
 
 export const workAuthors: Author[] = [

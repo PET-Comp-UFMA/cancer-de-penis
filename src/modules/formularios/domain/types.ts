@@ -1,6 +1,49 @@
 export type FormStatus = 'unpublished' | 'published';
 export type DefinitionState = 'incomplete' | 'complete';
 
+export type FormQuestionType = 'two-options' | 'likert';
+
+export type FormAlternative = {
+  id: string;
+  label: string;
+  score: number | null;
+};
+
+export type FormAuthor = {
+  id: string;
+  name: string;
+  institution: string;
+};
+
+export type FormQuestion = {
+  id: string;
+  prompt: string;
+  type: FormQuestionType;
+  alternatives: FormAlternative[];
+};
+
+export type FormResultBand = {
+  id: string;
+  minScore: number | null;
+  maxScore: number | null;
+  risk: string;
+  description: string;
+};
+
+export type FormDefinition = {
+  schemaVersion: 1;
+  title: string;
+  description: string;
+  imageDataUrl: string | null;
+  authors: FormAuthor[];
+  questions: FormQuestion[];
+  resultBands: FormResultBand[];
+};
+
+export type FormDetail = FormListItem & {
+  definition: FormDefinition;
+};
+
 export type FormListItem = {
   id: string;
   catalogKey: string;
@@ -10,6 +53,7 @@ export type FormListItem = {
   definitionState: DefinitionState;
   createdAt: string;
   updatedAt: string;
+  revision: number;
 };
 
 export type ListFormsInput = {
@@ -32,6 +76,12 @@ export type PublicFormListItem = {
   title: string;
   description: string;
   updatedAt: string;
+};
+
+export type PublicFormDetail = PublicFormListItem & {
+  definition: FormDefinition;
+  publishedRevision: number;
+  publishedAt: string;
 };
 
 export type ListPublishedFormsInput = {

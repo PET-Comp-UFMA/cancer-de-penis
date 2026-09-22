@@ -1,15 +1,12 @@
-export type FormStatus = "unpublished" | "published";
-export type FormDefinitionState = "incomplete" | "complete";
+import type {
+  DefinitionState,
+  FormDefinition,
+  FormDetail,
+  FormListItem,
+} from "../domain/types";
 
-export type FormListItem = {
-  id: string;
-  catalogKey: string;
-  title: string;
-  description: string;
-  status: FormStatus;
-  definitionState: FormDefinitionState;
-  updatedAt: string;
-};
+export type { DefinitionState, FormDefinition, FormDetail, FormListItem, FormQuestionType, FormStatus } from "../domain/types";
+export type FormDefinitionState = DefinitionState;
 
 export type FormsListResponse = {
   forms: FormListItem[];
@@ -67,6 +64,33 @@ export async function getForms({
   return response.json() as Promise<FormsListResponse>;
 }
 
+export async function createForm(csrfToken: string, definition?: FormDefinition): Promise<FormDetail> {
+  const response = await fetch('/api/formularios', { method: 'POST', credentials: 'same-origin',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+    body: JSON.stringify(definition ? { definition } : {}), });
+  if (!response.ok) {
+    let message = 'Não foi possível criar o formulário.';
+    try { message = ((await response.json()) as { error?: string }).error || message; } catch { /* keep fallback */ }
+    throw new FormsApiError(message, response.status);
+  }
+  return response.json() as Promise<FormDetail>;
+}
+
+export async function getForm(formId: string, signal?: AbortSignal): Promise<FormDetail> {
+  const response = await fetch(`/api/formularios/${encodeURIComponent(formId)}`, { credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' }, signal });
+  if (!response.ok) {
+    let message = 'Não foi possível carregar o formulário.';
+    try { message = ((await response.json()) as { error?: string }).error || message; } catch { /* keep fallback */ }
+    throw new FormsApiError(message, response.status);
+  }
+  return response.json() as Promise<FormDetail>;
+}
+
+export async function saveFormDefinition(formId: string, definition: FormDefinition, expectedRevision: number, csrfToken: string): Promise<FormDetail> {
+  const response = await sendFormMutation(formId, csrfToken, 'PATCH', { definition, expectedRevision });
+  return response.json() as Promise<FormDetail>;
+}
+
 async function sendFormMutation(
   formId: string,
   csrfToken: string,
@@ -102,8 +126,12 @@ export async function updateFormStatus(
   formId: string,
   status: FormListItem["status"],
   csrfToken: string,
+  expectedRevision: number,
 ): Promise<FormListItem> {
-  const response = await sendFormMutation(formId, csrfToken, "PATCH", { status });
+  const response = await sendFormMutation(formId, csrfToken, "PATCH", {
+    status,
+    expectedRevision,
+  });
   return response.json() as Promise<FormListItem>;
 }
 

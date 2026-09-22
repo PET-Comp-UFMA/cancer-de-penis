@@ -22,7 +22,7 @@ type FormQuestionnaireProps = {
   form: FormDefinition;
 };
 
-type Answer = boolean | null;
+type Answer = string | null;
 
 function QuestionProgress({ currentIndex, total }: { currentIndex: number; total: number }) {
   return (
@@ -106,7 +106,7 @@ export default function FormQuestionnaire({ form }: FormQuestionnaireProps) {
   const selectedAnswer = answers[currentIndex];
   const isLastQuestion = currentIndex === form.questions.length - 1;
 
-  function selectAnswer(value: boolean) {
+  function selectAnswer(value: string) {
     setAnswers((previous) => {
       const next = [...previous];
       next[currentIndex] = value;
@@ -151,7 +151,7 @@ export default function FormQuestionnaire({ form }: FormQuestionnaireProps) {
         <RadioGroup
           aria-label={question.prompt}
           value={selectedAnswer === null ? "" : String(selectedAnswer)}
-          onChange={(event) => selectAnswer(event.target.value === "true")}
+          onChange={(event) => selectAnswer(event.target.value)}
           sx={{
             bgcolor: "#F0F5F6",
             borderRadius: 2,
@@ -159,6 +159,9 @@ export default function FormQuestionnaire({ form }: FormQuestionnaireProps) {
             gap: 0.25,
           }}
         >
+          {question.answerType === "single-choice" ? question.options?.map((option) => (
+            <FormControlLabel key={option.id} value={option.id} control={<Radio sx={{ color: "#015D67", "&.Mui-checked": { color: "#015D67" } }} />} label={option.label} sx={{ m: 0, minHeight: 32, "& .MuiFormControlLabel-label": { fontSize: 13 } }} />
+          )) : <>
           <FormControlLabel
             value="true"
             control={<Radio sx={{ color: "#015D67", "&.Mui-checked": { color: "#015D67" } }} />}
@@ -171,6 +174,7 @@ export default function FormQuestionnaire({ form }: FormQuestionnaireProps) {
             label="Não"
             sx={{ m: 0, minHeight: 32, "& .MuiFormControlLabel-label": { fontSize: 13 } }}
           />
+          </>}
         </RadioGroup>
       </FormControl>
 

@@ -42,7 +42,7 @@ async function main() {
     await client.query(`CREATE ROLE avaliapen_runtime LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS CONNECTION LIMIT 10 PASSWORD '${password}'`);
     await client.query('GRANT USAGE ON SCHEMA app_private TO avaliapen_runtime');
     await client.query('GRANT SELECT, UPDATE ON app_private.admin_users TO avaliapen_runtime');
-    await client.query('GRANT SELECT, UPDATE, DELETE ON app_private.admin_forms TO avaliapen_runtime');
+    await client.query('GRANT SELECT, INSERT, UPDATE, DELETE ON app_private.admin_forms TO avaliapen_runtime');
     await client.query('GRANT SELECT, INSERT, UPDATE ON app_private.admin_sessions, app_private.auth_rate_limits TO avaliapen_runtime');
     const dbName = (await client.query('SELECT current_database() AS name')).rows[0].name as string;
     await client.query('GRANT CONNECT ON DATABASE "' + dbName.replaceAll('"', '""') + '" TO avaliapen_runtime');

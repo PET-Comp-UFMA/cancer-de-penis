@@ -1,10 +1,12 @@
 import type { Author } from "@/modules/autores/domain/authors";
 import { workAuthors } from "@/modules/autores/domain/authors";
+import type { FormDefinition as EditableFormDefinition } from "@/modules/formularios/domain/types";
 
 export type FormQuestion = {
   id: string;
   prompt: string;
-  answerType: "boolean";
+  answerType: "boolean" | "single-choice";
+  options?: readonly { id: string; label: string }[];
 };
 
 export type FormDefinition = {
@@ -135,4 +137,56 @@ export function getFormAuthorsPath(form: Pick<FormDefinition, "slug">) {
 
 export function getFormResultPath(form: Pick<FormDefinition, "slug">) {
   return `${getFormBasePath(form)}/resultado`;
+}
+
+export function toPublicDefinition(value: {
+  catalogKey: string;
+  title: string;
+  description: string;
+  definition: EditableFormDefinition;
+}): FormDefinition {
+  const { definition } = value;
+  return {
+    slug: normalizeFormSlug(value.catalogKey),
+    catalogKey: value.catalogKey,
+    title: value.title,
+    description: value.description,
+    heroImage: definition.imageDataUrl || "/rounded.svg",
+    authors: definition.authors.map((author) => ({
+      name: author.name,
+      specialty: author.institution || "Autor do formulário",
+      image: "",
+    })),
+    questions: definition.questions.map((question) => ({
+      id: question.id,
+      prompt: question.prompt,
+      answerType: "single-choice",
+      options: question.alternatives.map((alternative) => ({ id: alternative.id, label: alternative.label })),
+    })),
+    questionnaireStatus: definition.questions.length > 0 ? "ready" : "pending",
+  };
+}
+
+export async function getPublicFormDefinition(
+  catalogKey: string,
+  origin = "",
+): Promise<FormDefinition | undefined> {
+  const legacy = getFormDefinition(catalogKey);
+
+  const response = await fetch(`${origin}/api/formularios/publicados/${encodeURIComponent(catalogKey)}`, {
+    headers: { Accept: "application/json" },
+    cache: "no-store",
+  });
+  if (response.status === 404) {
+    return undefined;
+  }
+  if (!response.ok) throw new Error("Não foi possível carregar o formulário publicado.");
+  const value = (await response.json()) as {
+    catalogKey: string;
+    title: string;
+    description: string;
+    definition: EditableFormDefinition;
+  };
+  if (legacy && value.definition.questions.length === 0) return legacy;
+  return toPublicDefinition(value);
 }

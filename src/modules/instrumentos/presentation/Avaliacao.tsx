@@ -18,7 +18,7 @@ import {
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import Header from "@/shared/components/Header";
 import Footer from "@/shared/components/Footer";
-import { getPublishedForms, type PublicForm } from "./public-forms";
+import { getPublishedForm, getPublishedForms, type PublicForm } from "./public-forms";
 
 const PAGE_SIZE = 6;
 
@@ -66,8 +66,8 @@ function toPublishedCard(form: PublicForm): CatalogCard {
     catalogKey: form.catalogKey,
     title: form.title,
     description: form.description,
-    image: knownForm?.image,
-    href: knownForm?.href,
+    image: form.imageDataUrl || knownForm?.image,
+    href: knownForm?.href || `/tela-avaliacao/${encodeURIComponent(form.catalogKey)}`,
   };
 }
 
@@ -98,8 +98,16 @@ export default function Avaliacao() {
     });
 
     getPublishedForms({ search: debouncedSearch, page, pageSize: PAGE_SIZE, signal: controller.signal })
-      .then((result) => {
-        setForms(result.forms);
+      .then(async (result) => {
+        const formsWithSnapshots = await Promise.all(result.forms.map(async (form) => {
+          if (legacyForms.some((legacy) => normalizeCatalogKey(legacy.catalogKey) === normalizeCatalogKey(form.catalogKey))) return form;
+          try { return await getPublishedForm(form.catalogKey, controller.signal); } catch (requestError) {
+            if (requestError instanceof DOMException && requestError.name === "AbortError") throw requestError;
+            return form;
+          }
+        }));
+        if (controller.signal.aborted) return;
+        setForms(formsWithSnapshots);
         setTotalPages(Math.max(1, result.totalPages));
       })
       .catch((requestError: unknown) => {

@@ -22,13 +22,7 @@ export default function AuthorsGrid({ authors }: AuthorsGridProps) {
               },
             }}
           >
-            <CardMedia
-              component="img"
-              height="240"
-              image={author.image}
-              alt={author.name}
-              sx={{ objectFit: "cover" }}
-            />
+            {author.image ? <CardMedia component="img" height="240" image={author.image} alt={author.name} sx={{ objectFit: "cover" }} /> : <div style={{ height: 240, background: "#E7F3F3" }} aria-hidden="true" />}
             <CardContent sx={{ textAlign: "center", py: 3 }}>
               <Typography
                 variant="h6"

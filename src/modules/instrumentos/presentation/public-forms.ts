@@ -3,6 +3,8 @@ export type PublicForm = {
   catalogKey: string;
   title: string;
   description: string;
+  imageDataUrl?: string | null;
+  definition?: { imageDataUrl?: string | null };
 };
 
 export type PublicFormsResponse = {
@@ -57,4 +59,16 @@ export async function getPublishedForms({
   }
 
   return response.json() as Promise<PublicFormsResponse>;
+}
+
+export async function getPublishedForm(catalogKey: string, signal?: AbortSignal): Promise<PublicForm> {
+  const response = await fetch(`/api/formularios/publicados/${encodeURIComponent(catalogKey)}`, {
+    credentials: "same-origin",
+    cache: "no-store",
+    headers: { Accept: "application/json" },
+    signal,
+  });
+  if (!response.ok) throw new PublicFormsApiError("Não foi possível carregar o formulário publicado.", response.status);
+  const value = await response.json() as PublicForm;
+  return { ...value, imageDataUrl: value.imageDataUrl ?? value.definition?.imageDataUrl ?? null };
 }

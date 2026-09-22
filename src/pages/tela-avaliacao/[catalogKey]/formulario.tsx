@@ -3,7 +3,8 @@ import { Box, Link, Typography } from "@mui/material";
 import FormInstanceLayout from "@/modules/instrumentos/presentation/FormInstanceLayout";
 import FormQuestionnaire from "@/modules/instrumentos/presentation/FormQuestionnaire";
 import type { FormDefinition } from "@/modules/instrumentos/domain/form-definitions";
-import { getFormBasePath, getFormDefinition } from "@/modules/instrumentos/domain/form-definitions";
+import { getFormBasePath } from "@/modules/instrumentos/domain/form-definitions";
+import { getServerPublicFormDefinition } from "@/modules/instrumentos/server/public-form";
 
 type FormularioPageProps = {
   form: FormDefinition;
@@ -12,7 +13,7 @@ type FormularioPageProps = {
 export const getServerSideProps: GetServerSideProps<FormularioPageProps> = async ({ params }) => {
   const rawSlug = params?.catalogKey;
   const slug = Array.isArray(rawSlug) ? rawSlug[0] : rawSlug;
-  const form = slug ? getFormDefinition(slug) : undefined;
+  const form = slug ? await getServerPublicFormDefinition(slug) : undefined;
 
   if (!form) return { notFound: true };
   return { props: { form } };
