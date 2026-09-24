@@ -1,5 +1,5 @@
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
-import { Box, IconButton, Link, Tooltip, Typography } from "@mui/material";
+import { AppBar, Box, IconButton, Link, Toolbar, Tooltip, Typography } from "@mui/material";
 import NextLink from "next/link";
 
 const FOREST_GREEN = "#015D67";
@@ -29,6 +29,28 @@ function Brand({ compact = false }: { compact?: boolean }) {
 
 export type AdminActivePage = "home" | "forms";
 
+// Mirrors the public site header (src/shared/components/Header.tsx): same bar
+// height, logo, link size and active underline, so admin and public match.
+const navLinkSx = (active: boolean) => ({
+  color: "#fff",
+  fontWeight: 500,
+  pb: "6px",
+  position: "relative",
+  whiteSpace: "nowrap",
+  "&::after": {
+    bgcolor: "#fff",
+    bottom: 0,
+    content: '""',
+    height: "2px",
+    left: 0,
+    position: "absolute",
+    transform: active ? "scaleX(1)" : "scaleX(0)",
+    transition: "transform 0.2s ease-in-out",
+    width: "100%",
+  },
+  "&:hover::after": { transform: "scaleX(1)" },
+});
+
 export function AdminHeader({
   activePage = "forms",
   onLogout,
@@ -42,88 +64,35 @@ export function AdminHeader({
   const formsAreActive = activePage === "forms";
 
   return (
-    <Box
-      component="header"
-      sx={{
-        bgcolor: FOREST_GREEN,
-        color: PAGE_BACKGROUND,
-        width: "100%",
-      }}
-    >
-      <Box
-        sx={{
-          alignItems: "center",
-          display: "flex",
-          justifyContent: "space-between",
-          minHeight: { xs: 72, sm: 92 },
-          px: { xs: 2, sm: 2.5, md: 4.6 },
-          width: "100%",
-        }}
-      >
+    <AppBar component="header" elevation={0} position="sticky" sx={{ bgcolor: FOREST_GREEN, zIndex: 1201 }}>
+      <Toolbar sx={{ display: "flex", justifyContent: "space-between" }}>
         <Link
           component={NextLink}
           href="/admin"
-          underline="none"
           aria-label="Câncer de Pênis, Início"
           aria-current={homeIsActive ? "page" : undefined}
-          sx={{ display: "inline-flex" }}
+          sx={{ alignItems: "center", display: "flex" }}
         >
-          <Brand />
+          <Box component="img" src="/logo-avaliapen.svg" alt="Câncer de Pênis" sx={{ height: 60 }} />
         </Link>
 
-        <Box
-          component="nav"
-          aria-label="Navegação administrativa"
-          sx={{ alignItems: "center", display: "flex", gap: { xs: 1.5, sm: 2, md: 11.25 } }}
-        >
-          <Link
-            component={NextLink}
-            href="/admin"
-            underline={homeIsActive ? "always" : "none"}
-            aria-current={homeIsActive ? "page" : undefined}
-            sx={{
-              color: "inherit",
-              display: { xs: "none", sm: "inline-flex" },
-              fontSize: { sm: 18, md: 24.19 },
-              fontWeight: 500,
-              px: 0.5,
-              py: 1,
-              textUnderlineOffset: "4px",
-            }}
-          >
+        <Box component="nav" aria-label="Navegação administrativa" sx={{ alignItems: "center", display: "flex", gap: { xs: 2.5, md: 10 }, px: { xs: 0, md: 2 } }}>
+          <Link component={NextLink} href="/admin" underline="none" aria-current={homeIsActive ? "page" : undefined} sx={{ ...navLinkSx(homeIsActive), display: { xs: "none", sm: "inline-block" } }}>
             Início
           </Link>
-          <Link
-            component={NextLink}
-            href="/admin/formularios"
-            underline={formsAreActive ? "always" : "none"}
-            aria-current={formsAreActive ? "page" : undefined}
-            sx={{
-              color: "inherit",
-              fontSize: { xs: 14, sm: 18, md: 24.19 },
-              fontWeight: 500,
-              textUnderlineOffset: "4px",
-              whiteSpace: "nowrap",
-            }}
-          >
+          <Link component={NextLink} href="/admin/formularios" underline="none" aria-current={formsAreActive ? "page" : undefined} sx={navLinkSx(formsAreActive)}>
             Meus Formulários
           </Link>
           <Tooltip title="Sair">
             <span>
-              <IconButton
-                aria-label="Sair"
-                color="inherit"
-                disabled={loggingOut}
-                onClick={onLogout}
-                sx={{ p: 0.5 }}
-              >
-                <LogoutRoundedIcon sx={{ fontSize: { xs: 28, sm: 34 } }} />
+              <IconButton aria-label="Sair" color="inherit" disabled={loggingOut} onClick={onLogout}>
+                <LogoutRoundedIcon />
               </IconButton>
             </span>
           </Tooltip>
         </Box>
-      </Box>
-    </Box>
+      </Toolbar>
+    </AppBar>
   );
 }
 

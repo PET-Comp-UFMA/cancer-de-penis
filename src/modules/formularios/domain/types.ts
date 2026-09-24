@@ -13,6 +13,7 @@ export type FormAuthor = {
   id: string;
   name: string;
   institution: string;
+  imageDataUrl?: string | null;
 };
 
 export type FormQuestion = {
@@ -58,6 +59,8 @@ export type FormListItem = {
   createdAt: string;
   updatedAt: string;
   revision: number;
+  // True once the form has been published at least once; its definition is then permanently frozen.
+  everPublished: boolean;
 };
 
 export type ListFormsInput = {

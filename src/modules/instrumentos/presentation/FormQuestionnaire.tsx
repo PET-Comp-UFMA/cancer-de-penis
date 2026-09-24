@@ -47,9 +47,7 @@ export default function FormQuestionnaire({ form }: FormQuestionnaireProps) {
   const selectedAnswer = answers[currentIndex];
   const isLastQuestion = currentIndex === form.questions.length - 1;
   const isLikert = question.answerType === "likert";
-  const options = question.answerType === "boolean"
-    ? [{ id: "true", label: "Sim" }, { id: "false", label: "Não" }]
-    : question.options ?? [];
+  const options = question.options ?? [];
 
   function selectAnswer(value: string) {
     setAnswers((previous) => { const next = [...previous]; next[currentIndex] = value; return next; });

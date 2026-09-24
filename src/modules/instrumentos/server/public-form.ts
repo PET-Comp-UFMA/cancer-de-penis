@@ -1,19 +1,14 @@
+import type { GetServerSideProps } from "next";
 import { readPublicPublishedForm } from "@/modules/formularios/application/service";
-import {
-  getFormDefinition,
-  toPublicDefinition,
-  type FormDefinition,
-} from "../domain/form-definitions";
+import { findSession } from "@/modules/auth/infrastructure/repository";
+import { requestToken } from "@/modules/auth/server/cookies";
+import { toPublicDefinition, type FormDefinition } from "../domain/form-definitions";
+
+export type PublicFormPageProps = { form: FormDefinition; adminPreview: boolean };
 
 export async function getServerPublicFormDefinition(catalogKey: string): Promise<FormDefinition | undefined> {
-  const legacy = getFormDefinition(catalogKey);
-
   try {
     const published = await readPublicPublishedForm(catalogKey);
-    // Migration 006 can create a metadata-only snapshot for legacy rows. Keep
-    // the checked-in legacy instrument until an actual published definition exists.
-    if (!Array.isArray(published.definition.questions)) return legacy;
-    if (legacy && published.definition.questions.length === 0) return legacy;
     return toPublicDefinition({
       catalogKey: published.catalogKey,
       title: published.title,
@@ -26,3 +21,24 @@ export async function getServerPublicFormDefinition(catalogKey: string): Promise
     throw error;
   }
 }
+
+// Lets a logged-in admin previewing a public form jump back to the panel.
+// Anonymous visitors carry no session cookie, so no lookup happens for them.
+async function hasAdminSession(req: Parameters<typeof requestToken>[0]) {
+  const token = requestToken(req);
+  if (!token) return false;
+  try {
+    const session = await findSession(token);
+    return Boolean(session?.user.roles.some((role) => role === "admin" || role === "responsavel"));
+  } catch {
+    return false;
+  }
+}
+
+export const getPublicFormPageProps: GetServerSideProps<PublicFormPageProps> = async ({ params, req }) => {
+  const rawSlug = params?.catalogKey;
+  const slug = Array.isArray(rawSlug) ? rawSlug[0] : rawSlug;
+  const form = slug ? await getServerPublicFormDefinition(slug) : undefined;
+  if (!form) return { notFound: true };
+  return { props: { form, adminPreview: await hasAdminSession(req) } };
+};

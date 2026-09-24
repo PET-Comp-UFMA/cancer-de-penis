@@ -10,6 +10,7 @@ import type {
   FormDetail,
   PublicFormDetail,
 } from '../domain/types';
+import { AUTO_CATALOG_KEY, slugCandidates } from '../domain/slug';
 
 type FormRow = {
   id: string;
@@ -22,6 +23,7 @@ type FormRow = {
   updated_at: Date;
   definition?: FormDefinition | Record<string, never>;
   revision?: string | number;
+  published_at?: Date | null;
 };
 
 type PublishedFormRow = {
@@ -46,6 +48,7 @@ function toListItem(row: FormRow): FormListItem {
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
     revision: Number(row.revision ?? 0),
+    everPublished: Boolean(row.published_at),
   };
 }
 
@@ -92,7 +95,7 @@ export async function listForms(ownerId: string, search: string, page: number, p
       [ownerId, search, pattern],
     );
     const rows = await client.query<FormRow>(
-      `select id, catalog_key, title, description, status, definition_state, created_at, updated_at, revision
+      `select id, catalog_key, title, description, status, definition_state, created_at, updated_at, revision, published_at
          from app_private.admin_forms
         where owner_id = $1
           and ($2 = '' or title ilike $3 or description ilike $3 or catalog_key ilike $3)
@@ -195,6 +198,19 @@ export async function getPublishedForm(catalogKey: string): Promise<PublicFormDe
   }
 }
 
+export async function availableSlug(client: PoolClient, title: string, formId: string) {
+  const candidate = slugCandidates(title);
+  for (let attempt = 1; attempt <= 100; attempt += 1) {
+    const key = candidate(attempt);
+    const taken = await client.query(
+      'select 1 from app_private.admin_forms where upper(catalog_key) = upper($1) and id <> $2 limit 1',
+      [key, formId],
+    );
+    if (!taken.rowCount) return key;
+  }
+  throw new Error('FORM_SLUG_CONFLICT');
+}
+
 export async function updateFormStatus(
   ownerId: string,
   formId: string,
@@ -206,7 +222,7 @@ export async function updateFormStatus(
     await client.query('begin');
     await client.query('select set_config($1, $2, true)', ['app.current_user_id', ownerId]);
     const current = await client.query<FormRow>(
-      `select id, catalog_key, title, description, status, definition_state, created_at, updated_at, revision
+      `select id, catalog_key, title, description, status, definition_state, created_at, updated_at, revision, published_at
          from app_private.admin_forms
         where id = $1 and owner_id = $2
         for update`,
@@ -222,16 +238,20 @@ export async function updateFormStatus(
     }
 
     if (status === 'published') {
+      // First publication fixes the public address: /tela-avaliacao/<slug of the title>.
+      const catalogKey = !existing.published_at && AUTO_CATALOG_KEY.test(existing.catalog_key)
+        ? await availableSlug(client, existing.title, formId)
+        : existing.catalog_key;
       const updated = await client.query<FormRow>(
         `update app_private.admin_forms
-            set status = 'published', published_definition = case
+            set status = 'published', catalog_key = $4, published_definition = case
                   when definition is not null and definition <> '{}'::jsonb then definition
                   else published_definition
                 end,
                 published_revision = revision, published_at = now(), updated_at = now()
           where id = $1 and owner_id = $2 and revision = $3
-          returning id, catalog_key, title, description, status, definition_state, created_at, updated_at, revision`,
-        [formId, ownerId, existing.revision],
+          returning id, catalog_key, title, description, status, definition_state, created_at, updated_at, revision, published_at`,
+        [formId, ownerId, existing.revision, catalogKey],
       );
       await client.query('commit');
       const row = updated.rows[0];
@@ -248,7 +268,7 @@ export async function updateFormStatus(
       `update app_private.admin_forms
           set status = $3, revision = revision + 1, updated_at = now()
         where id = $1 and owner_id = $2
-        returning id, catalog_key, title, description, status, definition_state, created_at, updated_at, revision`,
+        returning id, catalog_key, title, description, status, definition_state, created_at, updated_at, revision, published_at`,
       [formId, ownerId, status],
     );
     await client.query('commit');
@@ -257,6 +277,8 @@ export async function updateFormStatus(
     return toListItem(row);
   } catch (error) {
     await client.query('rollback').catch(() => undefined);
+    // Another form (not visible to this account) already holds the address.
+    if ((error as { code?: string }).code === '23505') throw new Error('FORM_SLUG_CONFLICT');
     throw error;
   } finally {
     client.release();
@@ -276,7 +298,7 @@ export async function createForm(
     const result = await client.query<FormRow>(
       `insert into app_private.admin_forms (owner_id, catalog_key, title, description, status, definition_state, definition, revision)
        values ($1, $2, $3, $4, 'unpublished', $6, $5::jsonb, 0)
-       returning id, catalog_key, title, description, status, definition_state, created_at, updated_at, definition, revision`,
+       returning id, catalog_key, title, description, status, definition_state, created_at, updated_at, definition, revision, published_at`,
       [ownerId, catalogKey, definition.title, definition.description, JSON.stringify(definition), state],
     );
     await client.query('commit');
@@ -295,7 +317,7 @@ export async function getOwnedForm(ownerId: string, formId: string): Promise<For
     await client.query('begin');
     await client.query('select set_config($1, $2, true)', ['app.current_user_id', ownerId]);
     const result = await client.query<FormRow>(
-      `select id, catalog_key, title, description, status, definition_state, created_at, updated_at, definition, revision
+      `select id, catalog_key, title, description, status, definition_state, created_at, updated_at, definition, revision, published_at
          from app_private.admin_forms where id = $1 and owner_id = $2`, [formId, ownerId]);
     await client.query('commit');
     const row = result.rows[0];
@@ -314,17 +336,19 @@ export async function updateOwnedDefinition(ownerId: string, formId: string, def
   try {
     await client.query('begin');
     await client.query('select set_config($1, $2, true)', ['app.current_user_id', ownerId]);
-    const current = await client.query<{ status: FormStatus; revision: string }>(
-      `select status, revision from app_private.admin_forms where id = $1 and owner_id = $2 for update`, [formId, ownerId]);
+    const current = await client.query<{ status: FormStatus; revision: string; published_at: Date | null }>(
+      `select status, revision, published_at from app_private.admin_forms where id = $1 and owner_id = $2 for update`, [formId, ownerId]);
     const existing = current.rows[0];
     if (!existing) throw new Error('FORM_NOT_FOUND');
+    // Once published, a form's definition is frozen for good (even after unpublishing).
+    if (existing.status === 'published' || existing.published_at) throw new Error('FORM_PUBLISHED_CANNOT_EDIT');
     if (Number(existing.revision) !== expectedRevision) throw new Error('FORM_REVISION_CONFLICT');
     const result = await client.query<FormRow>(
       `update app_private.admin_forms
           set title = $3, description = $4, definition = $5::jsonb, definition_state = $6,
               revision = revision + 1, updated_at = now()
         where id = $1 and owner_id = $2 and revision = $7
-        returning id, catalog_key, title, description, status, definition_state, created_at, updated_at, definition, revision`,
+        returning id, catalog_key, title, description, status, definition_state, created_at, updated_at, definition, revision, published_at`,
       [formId, ownerId, definition.title, definition.description, JSON.stringify(definition), state, expectedRevision],
     );
     await client.query('commit');

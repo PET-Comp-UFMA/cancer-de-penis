@@ -6,6 +6,7 @@ import type {
   ListPublishedFormsResult,
   FormDefinition,
 } from '../domain/types';
+import { definitionState } from '../domain/completeness';
 import {
   createForm,
   deleteOwnedForm,
@@ -26,6 +27,8 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3
 const MAX_TEXT = 10_000;
 const MAX_ITEMS = 500;
 const MAX_IMAGE_DATA_URL_LENGTH = 3_000_000;
+// Author photos are resized in the browser before upload; this is a generous ceiling.
+const MAX_AUTHOR_PHOTO_LENGTH = 400_000;
 
 export async function listOwnedForms(input: ListFormsInput): Promise<ListFormsResult> {
   if (!input.ownerId || !Number.isInteger(input.page) || input.page < 1 || input.page > MAX_PAGE
@@ -82,6 +85,11 @@ function validId(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0 && value.length <= 200 && /^[A-Za-z0-9._:-]+$/.test(value);
 }
 
+function validImageDataUrl(value: unknown, max: number): value is string {
+  return typeof value === 'string' && value.length <= max
+    && /^data:image\/(?:png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+$/i.test(value);
+}
+
 function validFiniteOrNull(value: unknown): value is number | null {
   return value === null || (typeof value === 'number' && Number.isFinite(value));
 }
@@ -94,9 +102,7 @@ export function validateFormDefinition(value: unknown): FormDefinition {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('FORM_INVALID_DEFINITION');
   const input = value as Record<string, unknown>;
   if (input.schemaVersion !== 1 || !validText(input.title) || !validText(input.description)
-    || (input.imageDataUrl !== null && (typeof input.imageDataUrl !== 'string'
-      || input.imageDataUrl.length > MAX_IMAGE_DATA_URL_LENGTH
-      || !/^data:image\/(?:png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+$/i.test(input.imageDataUrl)))) {
+    || (input.imageDataUrl !== null && !validImageDataUrl(input.imageDataUrl, MAX_IMAGE_DATA_URL_LENGTH))) {
     throw new Error('FORM_INVALID_DEFINITION');
   }
   if (!Array.isArray(input.authors) || input.authors.length > MAX_ITEMS
@@ -107,8 +113,10 @@ export function validateFormDefinition(value: unknown): FormDefinition {
   const authors = input.authors.map((author) => {
     if (!author || typeof author !== 'object' || Array.isArray(author)) throw new Error('FORM_INVALID_DEFINITION');
     const item = author as Record<string, unknown>;
-    if (!validId(item.id) || !validText(item.name) || !validText(item.institution)) throw new Error('FORM_INVALID_DEFINITION');
-    return { id: item.id, name: item.name, institution: item.institution };
+    const photo = item.imageDataUrl ?? null;
+    if (!validId(item.id) || !validText(item.name) || !validText(item.institution)
+      || (photo !== null && !validImageDataUrl(photo, MAX_AUTHOR_PHOTO_LENGTH))) throw new Error('FORM_INVALID_DEFINITION');
+    return { id: item.id, name: item.name, institution: item.institution, imageDataUrl: photo as string | null };
   });
   if (!hasUniqueIds(authors)) throw new Error('FORM_INVALID_DEFINITION');
   const questions = input.questions.map((question) => {
@@ -144,43 +152,7 @@ export function validateFormDefinition(value: unknown): FormDefinition {
   };
 }
 
-// Bands are a percentage of the producible score range (0–100, closed on
-// both ends — see the FormResultBand comment in domain/types.ts), so
-// coverage is checked against 0–100 directly rather than a raw score range.
-// Since the scoring engine only ever produces whole-number percentages
-// (Math.round in scoreToPercentage), adjacent bands are expected one point
-// apart — e.g. [0,33] then [34,66] — so this checks band[i].maxScore + 1 ===
-// band[i+1].minScore once sorted, catching both gaps and overlaps.
-function bandsCoverPercentageRange(definition: FormDefinition): boolean {
-  const sorted = [...definition.resultBands].sort((a, b) => (a.minScore as number) - (b.minScore as number));
-  for (let index = 0; index < sorted.length - 1; index += 1) {
-    if ((sorted[index].maxScore as number) + 1 !== sorted[index + 1].minScore) return false;
-  }
-  return sorted[0].minScore === 0 && sorted[sorted.length - 1].maxScore === 100;
-}
-
-export function definitionState(definition: FormDefinition): 'incomplete' | 'complete' {
-  const questionsComplete = definition.questions.length > 0
-    && definition.questions.every((question) => {
-      const minimum = question.type === 'likert' ? 3 : 2;
-      return question.prompt.trim().length > 0
-        && question.alternatives.length >= minimum
-        && question.alternatives.every((alternative) => alternative.label.trim().length > 0
-          && alternative.score !== null
-          && Number.isFinite(alternative.score));
-    });
-  const resultBandsComplete = definition.resultBands.length > 0
-    && definition.resultBands.every((band) => band.risk.trim().length > 0
-      && band.minScore !== null
-      && band.maxScore !== null
-      && Number.isFinite(band.minScore)
-      && Number.isFinite(band.maxScore)
-      && band.minScore <= band.maxScore)
-    && (!questionsComplete || bandsCoverPercentageRange(definition));
-  return definition.title.trim().length > 0 && questionsComplete && resultBandsComplete
-    ? 'complete'
-    : 'incomplete';
-}
+export { definitionState };
 
 export function emptyFormDefinition(): FormDefinition {
   return { schemaVersion: 1, title: '', description: '', imageDataUrl: null, authors: [], questions: [], resultBands: [] };
@@ -190,6 +162,16 @@ export async function createOwnedForm(ownerId: string, input?: unknown): Promise
   if (!UUID_PATTERN.test(ownerId)) throw new Error('INVALID_REQUEST');
   const definition = input === undefined ? emptyFormDefinition() : validateFormDefinition(input);
   return createForm(ownerId, `FORM-${randomUUID().replaceAll('-', '').toUpperCase()}`, definition, definitionState(definition));
+}
+
+// Creates an unpublished, editable copy — the way to change a form that is
+// locked because it was already published.
+export async function duplicateOwnedForm(input: { ownerId: string; formId: string }): Promise<FormDetail> {
+  if (!UUID_PATTERN.test(input.ownerId) || !UUID_PATTERN.test(input.formId)) throw new Error('INVALID_REQUEST');
+  const source = await getOwnedForm(input.ownerId, input.formId);
+  const title = `${source.definition.title || source.title} (cópia)`;
+  const definition = validateFormDefinition({ ...source.definition, title });
+  return createForm(input.ownerId, `FORM-${randomUUID().replaceAll('-', '').toUpperCase()}`, definition, definitionState(definition));
 }
 
 export async function readOwnedForm(input: { ownerId: string; formId: string }): Promise<FormDetail> {

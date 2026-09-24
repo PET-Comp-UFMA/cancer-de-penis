@@ -1,21 +1,9 @@
-import type { GetServerSideProps } from "next";
-import type { FormDefinition } from "@/modules/instrumentos/domain/form-definitions";
-import { getServerPublicFormDefinition } from "@/modules/instrumentos/server/public-form";
+import { getPublicFormPageProps, type PublicFormPageProps } from "@/modules/instrumentos/server/public-form";
+import { AdminPreviewProvider } from "@/modules/instrumentos/presentation/AdminPreviewContext";
 import FormInstanceHome from "@/modules/instrumentos/presentation/FormInstanceHome";
 
-type FormHomePageProps = {
-  form: FormDefinition;
-};
+export const getServerSideProps = getPublicFormPageProps;
 
-export const getServerSideProps: GetServerSideProps<FormHomePageProps> = async ({ params }) => {
-  const rawSlug = params?.catalogKey;
-  const slug = Array.isArray(rawSlug) ? rawSlug[0] : rawSlug;
-  const form = slug ? await getServerPublicFormDefinition(slug) : undefined;
-
-  if (!form) return { notFound: true };
-  return { props: { form } };
-};
-
-export default function FormHomePage({ form }: FormHomePageProps) {
-  return <FormInstanceHome form={form} />;
+export default function FormHomePage({ form, adminPreview }: PublicFormPageProps) {
+  return <AdminPreviewProvider value={adminPreview}><FormInstanceHome form={form} /></AdminPreviewProvider>;
 }

@@ -1,12 +1,15 @@
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
 import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
+import ContentCopyRoundedIcon from "@mui/icons-material/ContentCopyRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import DragIndicatorRoundedIcon from "@mui/icons-material/DragIndicatorRounded";
 import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
+import PhotoCameraOutlinedIcon from "@mui/icons-material/PhotoCameraOutlined";
 import RemoveCircleOutlineRoundedIcon from "@mui/icons-material/RemoveCircleOutlineRounded";
 import {
   Alert,
+  Avatar,
   Box,
   Button,
   Card,
@@ -16,6 +19,7 @@ import {
   IconButton,
   Stack,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import { useRouter } from "next/router";
@@ -25,6 +29,7 @@ import { getSession, logout } from "@/modules/auth/presentation/api";
 import { AdminFooter, AdminHeader } from "@/modules/admin/presentation/AdminChrome";
 import {
   createForm,
+  duplicateForm,
   FormsApiError,
   getForm,
   saveFormDefinition,
@@ -32,6 +37,7 @@ import {
   type FormDetail,
 } from "./api";
 import type { FormDefinition, FormQuestionType } from "../domain/types";
+import { questionsComplete, resultBandsComplete } from "../domain/completeness";
 
 const GREEN = "#015D67";
 const BACKGROUND = "#FAFCFC";
@@ -78,6 +84,25 @@ const emptyDefinition = (): FormDefinition => ({
   resultBands: [{ id: id("band"), minScore: null, maxScore: null, risk: "", description: "" }],
 });
 
+// Author photos appear as small cards; downscale in the browser so the definition stays light.
+function resizeImage(file: File, maxSize = 320): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(image.width * scale);
+      canvas.height = Math.round(image.height * scale);
+      canvas.getContext("2d")?.drawImage(image, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL("image/jpeg", 0.8));
+    };
+    image.onerror = () => { URL.revokeObjectURL(url); reject(new Error("IMAGE_UNREADABLE")); };
+    image.src = url;
+  });
+}
+
 function numberOrNull(value: string) {
   if (value.trim() === "") return null;
   const parsed = Number(value);
@@ -96,9 +121,9 @@ export default function FormEditor({ formId, initialForm }: { user: AuthUser; fo
   const router = useRouter();
   const [definition, setDefinition] = useState<FormDefinition>(initialForm?.definition ?? emptyDefinition);
   const [currentId, setCurrentId] = useState(formId ?? initialForm?.id ?? "");
-  const [catalogKey, setCatalogKey] = useState(initialForm?.catalogKey ?? "");
   const [revision, setRevision] = useState(initialForm?.revision ?? 0);
   const [status, setStatus] = useState(initialForm?.status ?? "unpublished");
+  const [everPublished, setEverPublished] = useState(initialForm?.everPublished ?? false);
   const [csrfToken, setCsrfToken] = useState("");
   const [loading, setLoading] = useState(Boolean(formId && !initialForm));
   const [busy, setBusy] = useState(false);
@@ -106,8 +131,13 @@ export default function FormEditor({ formId, initialForm }: { user: AuthUser; fo
   const [success, setSuccess] = useState("");
   const [typeDialog, setTypeDialog] = useState(false);
   const [draggedQuestion, setDraggedQuestion] = useState<string | null>(null);
-  // A published form keeps its public snapshot while its editable definition becomes a draft.
-  const readOnly = false;
+  // Once published, a form is frozen for good; the server enforces it too (FORM_PUBLISHED_CANNOT_EDIT).
+  const readOnly = everPublished || status === "published";
+
+  // Alerts render at the top of the editor; bring them into view.
+  useEffect(() => {
+    if (error || success) window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [error, success]);
 
   useEffect(() => {
     let active = true;
@@ -116,7 +146,7 @@ export default function FormEditor({ formId, initialForm }: { user: AuthUser; fo
     const controller = new AbortController();
     getForm(formId, controller.signal).then((form) => {
       if (!active) return;
-      setDefinition(form.definition); setRevision(form.revision); setStatus(form.status); setCurrentId(form.id); setCatalogKey(form.catalogKey);
+      setDefinition(form.definition); setRevision(form.revision); setStatus(form.status); setEverPublished(form.everPublished); setCurrentId(form.id);
     }).catch((caught: unknown) => {
       if (!active || (caught instanceof DOMException && caught.name === "AbortError")) return;
       if (caught instanceof FormsApiError && caught.status === 401) {
@@ -162,13 +192,15 @@ export default function FormEditor({ formId, initialForm }: { user: AuthUser; fo
       }
       if (nextStatus) {
         const published = await withCsrf((token) => updateFormStatus(formIdToSave, "published", token, nextRevision));
-        setStatus(published.status);
+        setStatus(published.status); setEverPublished(true);
+        await router.push("/admin/formularios");
+        return formIdToSave;
       }
       if (createdNew) await router.replace(`/admin/formularios/${formIdToSave}`);
       return formIdToSave;
     } catch (caught) {
       showMutationError(caught);
-      if (createdNew && formIdToSave) await router.replace(`/admin/formularios/${formIdToSave}`);
+      // Stay on this page so the warning remains visible; currentId already points at the created form.
       return null;
     } finally { setBusy(false); }
   }
@@ -180,6 +212,26 @@ export default function FormEditor({ formId, initialForm }: { user: AuthUser; fo
   function removeQuestion(questionId: string) { updateDefinition({ questions: definition.questions.filter((question) => question.id !== questionId) }); }
   function moveQuestion(fromId: string, toId: string) { const questions = [...definition.questions]; const from = questions.findIndex((question) => question.id === fromId); const to = questions.findIndex((question) => question.id === toId); if (from < 0 || to < 0) return; const [item] = questions.splice(from, 1); questions.splice(to, 0, item); updateDefinition({ questions }); }
 
+  async function duplicate() {
+    setBusy(true); setError(""); setSuccess("");
+    try {
+      const copy = await withCsrf((token) => duplicateForm(currentId, token));
+      await router.push(`/admin/formularios/${copy.id}`);
+    } catch (caught) {
+      showMutationError(caught);
+    } finally { setBusy(false); }
+  }
+
+  function setAuthorPhoto(authorId: string, imageDataUrl: string | null) {
+    setDefinition((current) => ({ ...current, authors: current.authors.map((author) => author.id === authorId ? { ...author, imageDataUrl } : author) }));
+  }
+
+  function handleAuthorPhoto(authorId: string, event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]; event.target.value = ""; if (!file) return;
+    if (!/^image\/(?:png|jpe?g|webp|gif)$/i.test(file.type)) { setError("Escolha uma imagem PNG, JPEG, WebP ou GIF."); return; }
+    resizeImage(file).then((imageDataUrl) => setAuthorPhoto(authorId, imageDataUrl)).catch(() => setError("Não foi possível ler a imagem escolhida."));
+  }
+
   function handleImage(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]; if (!file) return;
     if (!/^image\/(?:png|jpe?g|webp|gif)$/i.test(file.type)) { setError("Escolha uma imagem PNG, JPEG, WebP ou GIF."); return; }
@@ -189,32 +241,23 @@ export default function FormEditor({ formId, initialForm }: { user: AuthUser; fo
 
   const stepsComplete = useMemo(() => [
     Boolean(definition.title.trim()),
-    definition.questions.length > 0 && definition.questions.every((question) => {
-      const minimum = question.type === "likert" ? 3 : 2;
-      return Boolean(question.prompt.trim())
-        && question.alternatives.length >= minimum
-        && question.alternatives.every((alternative) => Boolean(alternative.label.trim())
-          && alternative.score !== null
-          && Number.isFinite(alternative.score));
-    }),
-    definition.resultBands.length > 0 && definition.resultBands.every((band) => band.risk.trim()
-      && band.minScore !== null
-      && band.maxScore !== null
-      && Number.isFinite(band.minScore)
-      && Number.isFinite(band.maxScore)
-      && band.minScore <= band.maxScore),
+    questionsComplete(definition),
+    resultBandsComplete(definition),
   ], [definition]);
+  const missingSteps = ["01 - Dados do Formulário (nome)", "02 - Perguntas (texto, alternativas e pontuações)", "03 - Faixas de Resultados (de 0 a 100%, sem lacunas nem sobreposição)"]
+    .filter((_, index) => !stepsComplete[index]);
+  const canPublish = missingSteps.length === 0;
   if (loading) return <Box sx={{ alignItems: "center", display: "flex", justifyContent: "center", minHeight: "60vh" }}><CircularProgress sx={{ color: GREEN }} /></Box>;
 
   return <Box sx={{ bgcolor: BACKGROUND, display: "flex", flexDirection: "column", minHeight: "100vh" }}>
     <AdminHeader loggingOut={false} onLogout={signOut} />
     <Box component="main" data-testid="editor" sx={{ flex: 1, maxWidth: 1315, mx: "auto", px: { xs: 2, md: 3 }, py: { xs: 4, sm: 6 }, width: "100%" }}>
       <Box sx={{ mb: { xs: 3, sm: 5 }, textAlign: "center" }}><Typography component="h1" sx={{ color: GREEN, fontSize: { xs: 28, sm: 40 }, fontWeight: 700, letterSpacing: "-0.03em" }}>{currentId ? (definition.title || "Editar formulário") : "Novo Formulário"}</Typography><Typography sx={{ color: TEXT, fontSize: 13, mt: 1 }}>Crie novas ferramentas de avaliação.</Typography><Box data-testid="stepper" sx={{ alignItems: "center", display: "flex", justifyContent: "center", mx: "auto", mt: 3, maxWidth: { xs: "100%", sm: 447 }, width: "100%" }}>{stepsComplete.map((complete, index) => <Box key={index} sx={{ alignItems: "center", display: "flex", flex: { xs: 1, sm: "0 0 auto" }, minWidth: 0 }}><Box sx={{ alignItems: "center", bgcolor: complete ? GREEN : BACKGROUND, border: `1px solid #47878E`, borderRadius: "50%", color: complete ? "#fff" : "#242E39", display: "flex", flexShrink: 0, fontSize: { xs: 16, sm: 22.69 }, fontWeight: 600, height: { xs: 36, sm: 55.85 }, justifyContent: "center", width: { xs: 36, sm: 55.85 } }}>{complete ? <CheckRoundedIcon sx={{ fontSize: { xs: 21, sm: 30 } }} /> : `0${index + 1}`}</Box>{index < 2 && <Box sx={{ bgcolor: "#47878E", flex: { xs: 1, sm: "0 0 139.63px" }, height: { xs: 2, sm: 3.491 }, minWidth: 0 }} />}</Box>)}</Box></Box>
-      {error && <Alert onClose={() => setError("")} severity="error" sx={{ mb: 2 }}>{error}</Alert>}{success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}{status === "published" && <Alert severity="info" sx={{ mb: 3 }}>Este formulário está publicado. Salvar cria ou atualiza o rascunho e mantém a versão pública até uma nova publicação.</Alert>}{["PENRISK", "QUALIPEN"].includes(catalogKey.toUpperCase()) && <Alert severity="warning" sx={{ mb: 3 }}>Instrumento pendente de fonte clínica oficial. Não preencher pontuações ou faixas de resultado por suposição.</Alert>}
+      {error && <Alert onClose={() => setError("")} severity="error" sx={{ mb: 2 }}>{error}</Alert>}{success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}{readOnly && <Alert action={<Button color="inherit" disabled={busy} onClick={() => void duplicate()} size="small" startIcon={<ContentCopyRoundedIcon />} sx={{ textTransform: "none", whiteSpace: "nowrap" }}>Duplicar formulário</Button>} severity="info" sx={{ mb: 3 }}>Este formulário já foi publicado e não pode mais ser editado. Para fazer mudanças, duplique-o: a cópia pode ser editada e publicada.</Alert>}
       <Box component="fieldset" disabled={busy} onDragStart={(event) => { if (busy) event.preventDefault(); }} sx={{ border: 0, m: 0, minWidth: 0, p: 0 }}>
       <Card sx={{ border: 0, borderRadius: "8px", boxShadow: "0 2px 14px rgba(1, 93, 103, 0.05)", mb: 3 }}>
         <Box sx={{ px: { xs: 2, sm: 3.5 }, pt: { xs: 2.5, sm: 3.5 } }}><Typography component="h2" sx={{ color: GREEN, fontSize: { xs: 19, sm: 22 }, fontWeight: 700 }}>01 - Dados do Formulário</Typography></Box>
-        <CardContent sx={{ p: { xs: 2, sm: 3.5 }, pt: { xs: 2.5, sm: 3 } }}><Box sx={{ display: "grid", gap: { xs: 3, md: 5 }, gridTemplateColumns: { xs: "1fr", md: "minmax(0, 1fr) 340px" } }}><Stack spacing={{ xs: 2.25, sm: 2.75 }}><Input disabled={readOnly} externalLabel fieldHeight={71} label="Nome do Formulário" onChange={(value) => updateDefinition({ title: value })} required value={definition.title} /><Input disabled={readOnly} externalLabel label="Descrição" multiline multilineHeight={125} onChange={(value) => updateDefinition({ description: value })} value={definition.description} /><Box><Typography sx={{ color: TEXT, fontSize: 15, fontWeight: 700, mb: 1.25 }}>Autores do Formulário</Typography>{definition.authors.map((author, index) => <Box key={author.id} sx={{ alignItems: "start", display: "grid", gap: 1, gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr auto" }, mb: 1.5 }}><Input disabled={readOnly} externalLabel fieldHeight={71} label="Nome do Autor" onChange={(value) => updateDefinition({ authors: definition.authors.map((item) => item.id === author.id ? { ...item, name: value } : item) })} value={author.name} /><Input disabled={readOnly} externalLabel fieldHeight={71} label="Instituição" onChange={(value) => updateDefinition({ authors: definition.authors.map((item) => item.id === author.id ? { ...item, institution: value } : item) })} value={author.institution} /><IconButton aria-label={`Remover autor ${index + 1}`} disabled={readOnly || definition.authors.length === 1} onClick={() => updateDefinition({ authors: definition.authors.filter((item) => item.id !== author.id) })} sx={{ justifySelf: { xs: "start", sm: "auto" }, mt: { xs: 0, sm: 3 } }}><RemoveCircleOutlineRoundedIcon /></IconButton></Box>)}<Button disabled={readOnly} onClick={() => updateDefinition({ authors: [...definition.authors, { id: id("author"), name: "", institution: "" }] })} startIcon={<AddRoundedIcon />} sx={{ color: GREEN, textTransform: "none" }}>Adicionar autor</Button></Box><Box sx={{ alignItems: { xs: "stretch", sm: "center" }, display: "flex", flexDirection: { xs: "column", sm: "row" }, gap: 2 }}><Button component="label" disabled={readOnly} startIcon={<ImageOutlinedIcon />} sx={{ bgcolor: GREEN, color: "#fff", textTransform: "none", "&:hover": { bgcolor: "#014b53" } }}>Adicionar imagem<input accept="image/*" hidden onChange={handleImage} type="file" /></Button>{definition.imageDataUrl && <Box component="img" alt="Pré-visualização da imagem do formulário" src={definition.imageDataUrl} sx={{ borderRadius: 2, height: 82, objectFit: "cover", width: 140 }} />}</Box></Stack><Box sx={{ alignItems: "center", bgcolor: "#E7F0F0", borderRadius: 2, display: "flex", minHeight: { xs: 180, md: 270 }, overflow: "hidden", position: "relative" }}>{definition.imageDataUrl ? <Box component="img" alt="Pré-visualização da imagem do formulário" src={definition.imageDataUrl} sx={{ height: "100%", objectFit: "cover", position: "absolute", width: "100%" }} /> : <Box component="img" alt="Imagem demonstrativa" src="/Rounded-Rectangle.svg" sx={{ height: "100%", objectFit: "cover", opacity: .85, width: "100%" }} />}</Box></Box></CardContent>
+        <CardContent sx={{ p: { xs: 2, sm: 3.5 }, pt: { xs: 2.5, sm: 3 } }}><Box sx={{ display: "grid", gap: { xs: 3, md: 5 }, gridTemplateColumns: { xs: "1fr", md: "minmax(0, 1fr) 340px" } }}><Stack spacing={{ xs: 2.25, sm: 2.75 }}><Input disabled={readOnly} externalLabel fieldHeight={71} label="Nome do Formulário" onChange={(value) => updateDefinition({ title: value })} required value={definition.title} /><Input disabled={readOnly} externalLabel label="Descrição" multiline multilineHeight={125} onChange={(value) => updateDefinition({ description: value })} value={definition.description} /><Box><Typography sx={{ color: TEXT, fontSize: 15, fontWeight: 700, mb: 1.25 }}>Autores do Formulário</Typography>{definition.authors.map((author, index) => <Box key={author.id} sx={{ alignItems: "start", display: "grid", gap: 1, gridTemplateColumns: { xs: "1fr", sm: "auto 1fr 1fr auto" }, mb: 1.5 }}><Box sx={{ alignItems: "center", display: "flex", flexDirection: "column", gap: 0.25, mt: { xs: 0, sm: 2.5 } }}><Tooltip title={readOnly ? "" : author.imageDataUrl ? "Trocar foto" : "Adicionar foto"}><span><IconButton aria-label={`Foto do autor ${index + 1}`} component="label" disabled={readOnly} sx={{ p: 0 }}><Avatar alt={author.name} src={author.imageDataUrl ?? undefined} sx={{ bgcolor: "#E7F0F0", color: GREEN, height: 52, width: 52 }}><PhotoCameraOutlinedIcon /></Avatar><input accept="image/*" hidden onChange={(event) => handleAuthorPhoto(author.id, event)} type="file" /></IconButton></span></Tooltip>{author.imageDataUrl && !readOnly && <Button onClick={() => setAuthorPhoto(author.id, null)} size="small" sx={{ color: TEXT, fontSize: 10, minWidth: 0, p: 0, textTransform: "none" }}>Remover</Button>}</Box><Input disabled={readOnly} externalLabel fieldHeight={71} label="Nome do Autor" onChange={(value) => updateDefinition({ authors: definition.authors.map((item) => item.id === author.id ? { ...item, name: value } : item) })} value={author.name} /><Input disabled={readOnly} externalLabel fieldHeight={71} label="Instituição" onChange={(value) => updateDefinition({ authors: definition.authors.map((item) => item.id === author.id ? { ...item, institution: value } : item) })} value={author.institution} /><IconButton aria-label={`Remover autor ${index + 1}`} disabled={readOnly || definition.authors.length === 1} onClick={() => updateDefinition({ authors: definition.authors.filter((item) => item.id !== author.id) })} sx={{ justifySelf: { xs: "start", sm: "auto" }, mt: { xs: 0, sm: 3 } }}><RemoveCircleOutlineRoundedIcon /></IconButton></Box>)}<Button disabled={readOnly} onClick={() => updateDefinition({ authors: [...definition.authors, { id: id("author"), name: "", institution: "" }] })} startIcon={<AddRoundedIcon />} sx={{ color: GREEN, textTransform: "none" }}>Adicionar autor</Button></Box><Box sx={{ alignItems: { xs: "stretch", sm: "center" }, display: "flex", flexDirection: { xs: "column", sm: "row" }, gap: 2 }}><Button component="label" disabled={readOnly} startIcon={<ImageOutlinedIcon />} sx={{ bgcolor: GREEN, color: "#fff", textTransform: "none", "&:hover": { bgcolor: "#014b53" } }}>Adicionar imagem<input accept="image/*" hidden onChange={handleImage} type="file" /></Button>{definition.imageDataUrl && <Box component="img" alt="Pré-visualização da imagem do formulário" src={definition.imageDataUrl} sx={{ borderRadius: 2, height: 82, objectFit: "cover", width: 140 }} />}</Box></Stack><Box sx={{ alignItems: "center", bgcolor: "#E7F0F0", borderRadius: 2, display: "flex", minHeight: { xs: 180, md: 270 }, overflow: "hidden", position: "relative" }}>{definition.imageDataUrl ? <Box component="img" alt="Pré-visualização da imagem do formulário" src={definition.imageDataUrl} sx={{ height: "100%", objectFit: "cover", position: "absolute", width: "100%" }} /> : <Box component="img" alt="Imagem demonstrativa" src="/Rounded-Rectangle.svg" sx={{ height: "100%", objectFit: "cover", opacity: .85, width: "100%" }} />}</Box></Box></CardContent>
       </Card>
 
       <Card data-testid="questions-step" sx={{ border: 0, borderRadius: "8px", boxShadow: "0 2px 14px rgba(1, 93, 103, 0.05)", mb: 3, overflow: "hidden" }}>
@@ -234,7 +277,7 @@ export default function FormEditor({ formId, initialForm }: { user: AuthUser; fo
       </Card>
 
       </Box>
-      <Box sx={{ alignItems: { xs: "stretch", sm: "center" }, display: "flex", flexWrap: "wrap", gap: 1.5, justifyContent: "flex-end", pb: 3, pt: 1 }}><Button data-testid="back-form" onClick={() => router.push("/admin/formularios")} sx={{ border: `1px solid ${GREEN}`, color: GREEN, minWidth: 112, textTransform: "none" }}>Voltar</Button><Button data-testid="save-form" disabled={busy || readOnly || !definition.title.trim()} onClick={() => void persist()} sx={{ bgcolor: GREEN, color: "#fff", minWidth: 160, textTransform: "none", "&:hover": { bgcolor: "#014b53" } }}>{busy ? "Salvando..." : "Salvar alterações"}</Button><Button data-testid="publish-form" disabled={busy || readOnly || !definition.title.trim()} onClick={() => void persist("published")} sx={{ bgcolor: GREEN, color: "#fff", minWidth: 170, textTransform: "none", "&:hover": { bgcolor: "#014b53" } }}>{busy ? "Publicando..." : "Publicar Formulário"}</Button></Box>
+      <Box sx={{ alignItems: { xs: "stretch", sm: "center" }, display: "flex", flexWrap: "wrap", gap: 1.5, justifyContent: "flex-end", pb: 3, pt: 1 }}><Button data-testid="back-form" onClick={() => router.push("/admin/formularios")} sx={{ border: `1px solid ${GREEN}`, color: GREEN, minWidth: 112, textTransform: "none" }}>Voltar</Button><Button data-testid="save-form" disabled={busy || readOnly || !definition.title.trim()} onClick={() => void persist()} sx={{ bgcolor: GREEN, color: "#fff", minWidth: 160, textTransform: "none", "&:hover": { bgcolor: "#014b53" } }}>{busy ? "Salvando..." : "Salvar alterações"}</Button><Tooltip title={readOnly || canPublish ? "" : `Para publicar, complete: ${missingSteps.join("; ")}.`}><span><Button data-testid="publish-form" disabled={busy || readOnly || !canPublish} onClick={() => void persist("published")} sx={{ bgcolor: GREEN, color: "#fff", minWidth: 170, textTransform: "none", "&:hover": { bgcolor: "#014b53" }, "&.Mui-disabled": { bgcolor: "#B9C9CA", color: "#fff" } }}>{busy ? "Publicando..." : "Publicar Formulário"}</Button></span></Tooltip></Box>
     </Box><AdminFooter />
     <Dialog data-testid="question-type-dialog" onClose={() => setTypeDialog(false)} open={typeDialog} slotProps={{ paper: { sx: { borderRadius: "9px", maxWidth: 440, p: { xs: 3, sm: 4 }, position: "relative", width: "100%" } } }}>
       <IconButton aria-label="Fechar" onClick={() => setTypeDialog(false)} sx={{ position: "absolute", right: 16, top: 16 }}>

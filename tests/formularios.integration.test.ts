@@ -230,7 +230,7 @@ test('API cria, recarrega e publica uma definição completa com revisão', asyn
         { id: 'alternative-2', label: 'Sim', score: 1 },
       ],
     }],
-    resultBands: [{ id: 'band-1', minScore: 0, maxScore: 1, risk: 'Resultado', description: '' }],
+    resultBands: [{ id: 'band-1', minScore: 0, maxScore: 100, risk: 'Resultado', description: '' }],
   };
   const created = await browser.request('/api/formularios', { definition }, 'POST');
   assert.equal(created.status, 201);
@@ -255,7 +255,7 @@ test('API cria, recarrega e publica uma definição completa com revisão', asyn
   assert.equal((await otherBrowser.request(`/api/formularios/${created.data.id}`)).status, 404);
 });
 
-test('publicação preserva o snapshot enquanto o rascunho avança', async () => {
+test('formulário publicado uma vez nunca mais pode ser editado, mesmo despublicado', async () => {
   const owner = await account('forms.snapshot.owner');
   const browser = new Browser();
   assert.equal((await browser.login(owner.username)).status, 200);
@@ -264,29 +264,100 @@ test('publicação preserva o snapshot enquanto o rascunho avança', async () =>
     questions: [{ id: 'q1', prompt: 'Pergunta', type: 'two-options', alternatives: [
       { id: 'a1', label: 'Não', score: 0 }, { id: 'a2', label: 'Sim', score: 1 },
     ] }],
-    resultBands: [{ id: 'b1', minScore: 0, maxScore: 1, risk: 'Resultado', description: '' }],
+    resultBands: [{ id: 'b1', minScore: 0, maxScore: 100, risk: 'Resultado', description: '' }],
   };
   const created = await browser.request('/api/formularios', { definition }, 'POST');
   assert.equal(created.status, 201);
-  assert.equal((await browser.request(`/api/formularios/${created.data.id}`, { status: 'published', expectedRevision: 0 }, 'PATCH')).status, 200);
-  const edited = { ...definition, title: 'Rascunho v2', description: 'Descrição v2' };
-  const saved = await browser.request(`/api/formularios/${created.data.id}`, { definition: edited, expectedRevision: 0 }, 'PATCH');
-  assert.equal(saved.status, 200);
-  assert.equal(saved.data.revision, 1);
-  const publicV1 = await new Browser().request(`/api/formularios/publicados/${created.data.catalogKey}`);
+  const formUrl = `/api/formularios/${created.data.id}`;
+  const firstPublish = await browser.request(formUrl, { status: 'published', expectedRevision: 0 }, 'PATCH');
+  assert.equal(firstPublish.status, 200);
+  const address = firstPublish.data.catalogKey;
+  assert.equal(address, 'snapshot-v1');
+  const edited = { ...definition, title: 'Versão v2', description: 'Descrição v2' };
+  const blocked = await browser.request(formUrl, { definition: edited, expectedRevision: 0 }, 'PATCH');
+  assert.equal(blocked.status, 409);
+  assert.equal(blocked.data.code, 'FORM_PUBLISHED_CANNOT_EDIT');
+  const publicV1 = await new Browser().request(`/api/formularios/publicados/${address}`);
   assert.equal(publicV1.data.definition.title, 'Snapshot v1');
-  const stalePublish = await browser.request(
-    `/api/formularios/${created.data.id}`,
-    { status: 'published', expectedRevision: 0 },
-    'PATCH',
-  );
-  assert.equal(stalePublish.status, 409);
-  assert.equal(publicV1.data.description, 'Descrição v1');
-  assert.equal((await browser.request(`/api/formularios/${created.data.id}`, { status: 'published', expectedRevision: 1 }, 'PATCH')).status, 200);
-  const publicV2 = await new Browser().request(`/api/formularios/publicados/${created.data.catalogKey}`);
-  assert.equal(publicV2.data.definition.title, 'Rascunho v2');
-  assert.equal((await browser.request(`/api/formularios/${created.data.id}`, { status: 'unpublished', expectedRevision: 1 }, 'PATCH')).status, 200);
-  assert.equal((await new Browser().request(`/api/formularios/publicados/${created.data.catalogKey}`)).status, 404);
+
+  assert.equal((await browser.request(formUrl)).data.everPublished, true);
+
+  const unpublished = await browser.request(formUrl, { status: 'unpublished', expectedRevision: 0 }, 'PATCH');
+  assert.equal(unpublished.status, 200);
+  assert.equal(unpublished.data.everPublished, true);
+  assert.equal((await new Browser().request(`/api/formularios/publicados/${address}`)).status, 404);
+  const stillBlocked = await browser.request(formUrl, { definition: edited, expectedRevision: 1 }, 'PATCH');
+  assert.equal(stillBlocked.status, 409);
+  assert.equal(stillBlocked.data.code, 'FORM_PUBLISHED_CANNOT_EDIT');
+
+  const republish = await browser.request(formUrl, { status: 'published', expectedRevision: 1 }, 'PATCH');
+  assert.equal(republish.status, 200);
+  assert.equal(republish.data.catalogKey, address);
+  const republished = await new Browser().request(`/api/formularios/publicados/${address}`);
+  assert.equal(republished.data.definition.title, 'Snapshot v1');
+});
+
+test('primeira publicação define o endereço /tela-avaliacao/<nome-do-formulario>, sem repetir', async () => {
+  const owner = await account('forms.slug.owner');
+  const browser = new Browser();
+  assert.equal((await browser.login(owner.username)).status, 200);
+  const definition = (title: string) => ({
+    schemaVersion: 1, title, description: '', imageDataUrl: null, authors: [],
+    questions: [{ id: 'q1', prompt: 'Pergunta', type: 'two-options', alternatives: [
+      { id: 'n', label: 'Não', score: 0 }, { id: 's', label: 'Sim', score: 1 },
+    ] }],
+    resultBands: [{ id: 'b1', minScore: 0, maxScore: 100, risk: 'Resultado', description: '' }],
+  });
+  const publish = async (title: string) => {
+    const created = await browser.request('/api/formularios', { definition: definition(title) }, 'POST');
+    assert.match(created.data.catalogKey, /^FORM-/);
+    const published = await browser.request(`/api/formularios/${created.data.id}`, { status: 'published', expectedRevision: 0 }, 'PATCH');
+    assert.equal(published.status, 200);
+    return published.data.catalogKey as string;
+  };
+  assert.equal(await publish('Avaliação de Risco!'), 'avaliacao-de-risco');
+  assert.equal(await publish('avaliação de risco'), 'avaliacao-de-risco-2');
+  assert.equal(await publish('Tela Avaliação'), 'tela-avaliacao-2');
+  const page = await fetch(`${base}/tela-avaliacao/avaliacao-de-risco`);
+  assert.equal(page.status, 200);
+  assert.match(await page.text(), /Avaliação de Risco!/);
+});
+
+test('duplicar cria uma cópia editável e não publicada, somente para o dono', async () => {
+  const owner = await account('forms.duplicate.owner');
+  const browser = new Browser();
+  assert.equal((await browser.login(owner.username)).status, 200);
+  const definition = {
+    schemaVersion: 1, title: 'Original', description: 'Descrição', imageDataUrl: null,
+    authors: [{ id: 'a1', name: 'Autora', institution: 'IES' }],
+    questions: [{ id: 'q1', prompt: 'Pergunta', type: 'two-options', alternatives: [
+      { id: 'n', label: 'Não', score: 0 }, { id: 's', label: 'Sim', score: 1 },
+    ] }],
+    resultBands: [{ id: 'b1', minScore: 0, maxScore: 100, risk: 'Resultado', description: '' }],
+  };
+  const created = await browser.request('/api/formularios', { definition }, 'POST');
+  assert.equal((await browser.request(`/api/formularios/${created.data.id}`, { status: 'published', expectedRevision: 0 }, 'PATCH')).status, 200);
+
+  const copy = await browser.request(`/api/formularios/${created.data.id}`, {}, 'POST');
+  assert.equal(copy.status, 201);
+  assert.notEqual(copy.data.id, created.data.id);
+  assert.notEqual(copy.data.catalogKey, created.data.catalogKey);
+  assert.equal(copy.data.status, 'unpublished');
+  assert.equal(copy.data.everPublished, false);
+  assert.equal(copy.data.definitionState, 'complete');
+  assert.equal(copy.data.definition.title, 'Original (cópia)');
+  assert.deepEqual(copy.data.definition.questions, definition.questions);
+
+  const edited = await browser.request(`/api/formularios/${copy.data.id}`, { definition: { ...copy.data.definition, title: 'Nova versão' }, expectedRevision: 0 }, 'PATCH');
+  assert.equal(edited.status, 200);
+  const original = await browser.request(`/api/formularios/${created.data.id}`);
+  assert.equal(original.data.definition.title, 'Original');
+  assert.equal(original.data.status, 'published');
+
+  const other = await account('forms.duplicate.other');
+  const otherBrowser = new Browser();
+  assert.equal((await otherBrowser.login(other.username)).status, 200);
+  assert.equal((await otherBrowser.request(`/api/formularios/${created.data.id}`, {}, 'POST')).status, 404);
 });
 
 test('RLS limita a conta de runtime ao contexto da transação e bloqueia gravações', async () => {

@@ -2,19 +2,7 @@ import './admin-env';
 import { closePool, getPool } from '../src/modules/auth/infrastructure/db';
 import { validateFormDefinition, definitionState } from '../src/modules/formularios/application/service';
 import { createForm, updateFormStatus } from '../src/modules/formularios/infrastructure/repository';
-
-const catalog = [
-  {
-    catalogKey: 'PENRISK',
-    title: 'PENRISK',
-    description: 'Esta avaliação ajuda a identificar seu risco de desenvolver câncer de pênis. Quanto mais cedo for detectado, maiores são as chances de um tratamento bem sucedido.',
-  },
-  {
-    catalogKey: 'QUALIPEN',
-    title: 'QUALIPEN',
-    description: 'Esta avaliação tem o objetivo de entender como o câncer de pênis afeta a sua vida. Suas respostas nos ajudarão a entender o impacto da doença no seu dia a dia.',
-  },
-] as const;
+import { applyOfficialInstruments } from './instrumentos-oficiais';
 
 // Synthetic form used only to validate the scoring engine end-to-end (motor
 // de pontuação / faixas). Not a real clinical instrument — do not treat its
@@ -65,14 +53,7 @@ async function main() {
     );
     if (!owner.rowCount) throw new Error('ADMIN_NOT_FOUND');
     const ownerId = owner.rows[0].id;
-    for (const form of catalog) {
-      await client.query(
-        `insert into app_private.admin_forms (owner_id, catalog_key, title, description, status, definition_state)
-         values ($1, $2, $3, $4, 'published', 'complete')
-         on conflict (owner_id, catalog_key) do nothing`,
-        [ownerId, form.catalogKey, form.title, form.description],
-      );
-    }
+    for (const line of await applyOfficialInstruments(client, ownerId)) console.log(line);
     await client.query('commit');
 
     const existingTestForm = await client.query(
