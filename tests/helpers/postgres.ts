@@ -8,6 +8,7 @@ import { Pool } from 'pg';
 
 const BIN = process.env.PG_BIN || process.env.PG18local || 'C:\\Program Files\\PostgreSQL\\18\\bin';
 const root = path.resolve(process.cwd());
+const EXE = process.platform === 'win32' ? '.exe' : '';
 
 export function freePort() {
   return new Promise<number>((resolve, reject) => {
@@ -48,12 +49,12 @@ export async function startPostgres(): Promise<PostgresFixture> {
   const port = await freePort();
   const env = { ...process.env, PGCLIENTENCODING: 'UTF8' };
   try {
-    await run(path.join(BIN, 'initdb.exe'), ['-D', dataDir, '-U', 'postgres', '--pwfile', pwFile, '--auth=scram-sha-256', '--no-locale'], env);
+    await run(path.join(BIN, `initdb${EXE}`), ['-D', dataDir, '-U', 'postgres', '--pwfile', pwFile, '--auth=scram-sha-256', '--no-locale'], env);
   } finally { await fs.unlink(pwFile).catch(() => undefined); }
   const options = `-h 127.0.0.1 -p ${port}`;
   let pool: Pool | undefined;
   try {
-    await run(path.join(BIN, 'pg_ctl.exe'), ['-D', dataDir, '-o', options, '-w', 'start', '-l', logFile], env);
+    await run(path.join(BIN, `pg_ctl${EXE}`), ['-D', dataDir, '-o', options, '-w', 'start', '-l', logFile], env);
     const url = `postgresql://postgres:${encodeURIComponent(password)}@127.0.0.1:${port}/postgres?sslmode=disable`;
     pool = new Pool({ connectionString: url, max: 4, connectionTimeoutMillis: 5000 });
     await pool.query('select 1');
@@ -61,12 +62,12 @@ export async function startPostgres(): Promise<PostgresFixture> {
       url, pool, query: pool.query.bind(pool) as Pool['query'],
       stop: async () => {
         await pool?.end().catch(() => undefined);
-        await run(path.join(BIN, 'pg_ctl.exe'), ['-D', dataDir, '-m', 'fast', '-w', 'stop'], env).catch(() => undefined);
+        await run(path.join(BIN, `pg_ctl${EXE}`), ['-D', dataDir, '-m', 'fast', '-w', 'stop'], env).catch(() => undefined);
       },
     };
   } catch (error) {
     await pool?.end().catch(() => undefined);
-    await run(path.join(BIN, 'pg_ctl.exe'), ['-D', dataDir, '-m', 'fast', '-w', 'stop'], env).catch(() => undefined);
+    await run(path.join(BIN, `pg_ctl${EXE}`), ['-D', dataDir, '-m', 'fast', '-w', 'stop'], env).catch(() => undefined);
     throw error;
   }
 }

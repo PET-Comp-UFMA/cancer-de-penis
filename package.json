@@ -19,7 +19,9 @@
     "db:check": "tsx scripts/db-check.ts",
     "db:configure": "node scripts/db-configure.mjs",
     "db:runtime": "tsx scripts/db-runtime.ts",
-    "db:seed:formularios": "tsx scripts/seed-formularios.ts"
+    "db:seed:formularios": "tsx scripts/seed-formularios.ts",
+    "db:instrumentos": "tsx scripts/db-instrumentos.ts",
+    "db:enderecos": "tsx scripts/db-enderecos.ts"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

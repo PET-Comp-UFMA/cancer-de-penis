@@ -9,5 +9,5 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 };
 
 export default function EditFormPage({ user, formId }: InferGetServerSidePropsType<typeof getServerSideProps>) {
-  return <FormEditor formId={formId} user={user} />;
+  return <FormEditor formId={formId} key={formId} user={user} />;
 }

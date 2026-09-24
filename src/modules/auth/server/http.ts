@@ -14,6 +14,7 @@ export function authError(res: NextApiResponse, error: unknown) {
     FORM_NOT_PUBLISHED: [404, 'Formulário não publicado.'],
     FORM_NOT_READY: [409, 'Complete o formulário antes de publicá-lo.'],
     FORM_PUBLISHED_CANNOT_DELETE: [409, 'Retire o formulário da publicação antes de excluí-lo.'],
+    FORM_SLUG_CONFLICT: [409, 'Já existe um formulário publicado com esse nome. Altere o nome antes de publicar.'],
     INVALID_PASSWORD: [400, 'Use uma senha diferente da atual, com 12 a 128 caracteres.'],
     INVALID_CURRENT_PASSWORD: [400, 'A senha atual está incorreta. Confira e tente novamente.'],
     RATE_LIMITED: [429, 'Muitas tentativas. Aguarde 15 minutos e tente novamente.'],

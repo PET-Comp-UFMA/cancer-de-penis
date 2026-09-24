@@ -94,7 +94,7 @@ export async function saveFormDefinition(formId: string, definition: FormDefinit
 async function sendFormMutation(
   formId: string,
   csrfToken: string,
-  method: "PATCH" | "DELETE",
+  method: "POST" | "PATCH" | "DELETE",
   body?: object,
 ) {
   const response = await fetch(`/api/formularios/${encodeURIComponent(formId)}`, {
@@ -133,6 +133,11 @@ export async function updateFormStatus(
     expectedRevision,
   });
   return response.json() as Promise<FormListItem>;
+}
+
+export async function duplicateForm(formId: string, csrfToken: string): Promise<FormDetail> {
+  const response = await sendFormMutation(formId, csrfToken, "POST");
+  return response.json() as Promise<FormDetail>;
 }
 
 export async function deleteForm(formId: string, csrfToken: string): Promise<void> {

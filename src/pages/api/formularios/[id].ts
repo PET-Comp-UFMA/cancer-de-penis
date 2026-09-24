@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import type { FormStatus } from "@/modules/formularios/domain/types";
-import { readOwnedForm, removeOwnedForm, saveOwnedDefinition, setOwnedFormStatus } from "@/modules/formularios/application/service";
+import { duplicateOwnedForm, readOwnedForm, removeOwnedForm, saveOwnedDefinition, setOwnedFormStatus } from "@/modules/formularios/application/service";
 import { noStore } from "@/modules/auth/server/cookies";
 import { requireMutation, requireRole } from "@/modules/auth/server/guards";
 import { authError, methodNotAllowed } from "@/modules/auth/server/http";
@@ -19,7 +19,7 @@ function queryId(value: string | string[] | undefined) {
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   noStore(res);
-  if (req.method !== "GET" && req.method !== "PATCH" && req.method !== "DELETE") return methodNotAllowed(res, "GET, PATCH, DELETE");
+  if (req.method !== "GET" && req.method !== "POST" && req.method !== "PATCH" && req.method !== "DELETE") return methodNotAllowed(res, "GET, POST, PATCH, DELETE");
 
   try {
     const context = await requireRole(req, "admin");
@@ -29,6 +29,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (req.method === "GET") return res.status(200).json(await readOwnedForm({ ownerId: context.user.id, formId }));
 
     requireMutation(req);
+
+    // POST /api/formularios/:id duplicates the form into a new unpublished draft.
+    if (req.method === "POST") return res.status(201).json(await duplicateOwnedForm({ ownerId: context.user.id, formId }));
 
     if (req.method === "PATCH") {
       const body = req.body as { status?: unknown; definition?: unknown; expectedRevision?: unknown };

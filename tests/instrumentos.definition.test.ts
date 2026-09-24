@@ -1,35 +1,50 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { getFormDefinition, toPublicDefinition } from '../src/modules/instrumentos/domain/form-definitions';
+import { toPublicDefinition } from '../src/modules/instrumentos/domain/form-definitions';
 import { computeScore } from '../src/modules/instrumentos/domain/scoring';
+import { definitionState } from '../src/modules/formularios/application/service';
 import type { FormDefinition as EditableFormDefinition } from '../src/modules/formularios/domain/types';
+import { officialInstruments } from '../scripts/instrumentos-oficiais';
 
-test('PENRISK is a 13-question boolean instrument with standard bands', () => {
-  const definition = getFormDefinition('PENRISK')!;
+function instrument(catalogKey: string) {
+  const found = officialInstruments().find((item) => item.catalogKey === catalogKey)!;
+  return { editable: found.definition, definition: toPublicDefinition({ catalogKey, title: found.definition.title, description: found.definition.description, definition: found.definition }) };
+}
+
+test('instrumentos oficiais são formulários comuns completos e publicáveis', () => {
+  for (const { definition } of officialInstruments()) {
+    assert.equal(definitionState(definition), 'complete');
+    assert.match(definition.imageDataUrl ?? '', /^data:image\/jpeg;base64,/);
+    assert.ok(definition.authors.length > 0 && definition.authors.every((author) => author.imageDataUrl?.startsWith('data:image/jpeg;base64,')));
+  }
+});
+
+test('PENRISK is a 13-question Sim/Não instrument with standard bands', () => {
+  const { definition } = instrument('PENRISK');
   assert.equal(definition.questions.length, 13);
-  assert.ok(definition.questions.every((question) => question.answerType === 'boolean'));
-  const answers = (optionId: string) => definition.questions.map((question) => ({ questionId: question.id, optionId }));
-  assert.equal(computeScore(definition, answers('false')).percentage, 0);
-  assert.equal(computeScore(definition, answers('false')).band.risk, 'Risco Baixo');
-  assert.equal(computeScore(definition, answers('true')).score, 13);
-  assert.equal(computeScore(definition, answers('true')).percentage, 100);
-  assert.equal(computeScore(definition, answers('true')).band.risk, 'Risco Alto');
+  assert.ok(definition.questions.every((question) => question.answerType === 'single-choice'));
+  const answers = (suffix: string) => definition.questions.map((question) => ({ questionId: question.id, optionId: `${question.id}-${suffix}` }));
+  assert.equal(computeScore(definition, answers('nao')).percentage, 0);
+  assert.equal(computeScore(definition, answers('nao')).band.risk, 'Risco Baixo');
+  assert.equal(computeScore(definition, answers('sim')).score, 13);
+  assert.equal(computeScore(definition, answers('sim')).percentage, 100);
+  assert.equal(computeScore(definition, answers('sim')).band.risk, 'Risco Alto');
   const intermediate = computeScore(definition, definition.questions.map((question, index) => ({
     questionId: question.id,
-    optionId: index < 6 ? 'true' : 'false',
+    optionId: `${question.id}-${index < 6 ? 'sim' : 'nao'}`,
   })));
   assert.equal(intermediate.percentage, 46);
   assert.equal(intermediate.band.risk, 'Risco Médio');
 });
 
-test('boolean engine rejects incomplete and invalid answers', () => {
-  const definition = getFormDefinition('PENRISK')!;
+test('engine rejects incomplete and invalid PENRISK answers', () => {
+  const { definition } = instrument('PENRISK');
   assert.throws(() => computeScore(definition, []), /SCORE_INCOMPLETE_ANSWERS/);
   assert.throws(() => computeScore(definition, definition.questions.map((question) => ({ questionId: question.id, optionId: 'maybe' }))), /SCORE_INVALID_ANSWER/);
 });
 
 test('QUALIPEN has 24 ordered Likert questions and standard normalization', () => {
-  const definition = getFormDefinition('QUALIPEN')!;
+  const { definition } = instrument('QUALIPEN');
   assert.equal(definition.questions.length, 24);
   assert.ok(definition.questions.every((question) => question.answerType === 'likert'));
   assert.deepEqual(definition.questions.map((question) => question.prompt), [

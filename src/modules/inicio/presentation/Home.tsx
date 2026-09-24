@@ -15,7 +15,7 @@ export function HomeContent() {
           alignItems: "center",
           backgroundImage: 'url("/medico.png")',
           backgroundSize: "cover",
-          backgroundPosition: "left center",
+          backgroundPosition: "left top",
           backgroundRepeat: "no-repeat",
           position: "relative",
           pt: { xs: 12, md: 10 },

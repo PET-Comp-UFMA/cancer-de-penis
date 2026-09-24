@@ -31,43 +31,14 @@ type CatalogCard = {
   href?: string;
 };
 
-const legacyForms: CatalogCard[] = [
-  {
-    id: "legacy-penrisk",
-    catalogKey: "PENRISK",
-    title: "PENRISK",
-    description:
-      "Esta avaliação ajuda a identificar seu risco de desenvolver câncer de pênis. Quanto mais cedo for detectado, maiores são as chances de um tratamento bem sucedido.",
-    image: "/rounded.svg",
-    href: "/tela-avaliacao/penrisk",
-  },
-  {
-    id: "legacy-qualipen",
-    catalogKey: "QUALIPEN",
-    title: "QUALIPEN",
-    description:
-      "Esta avaliação tem o objetivo de entender como o câncer de pênis afeta a sua vida. Suas respostas nos ajudarão a entender o impacto da doença no seu dia a dia.",
-    image: "/Rounded-Rectangle.svg",
-    href: "/tela-avaliacao/qualipen",
-  },
-];
-
-function normalizeCatalogKey(catalogKey: string) {
-  return catalogKey.trim().toUpperCase();
-}
-
 function toPublishedCard(form: PublicForm): CatalogCard {
-  const knownForm = legacyForms.find(
-    (legacyForm) => normalizeCatalogKey(legacyForm.catalogKey) === normalizeCatalogKey(form.catalogKey),
-  );
-
   return {
     id: form.id,
     catalogKey: form.catalogKey,
     title: form.title,
     description: form.description,
-    image: form.imageDataUrl || knownForm?.image,
-    href: knownForm?.href || `/tela-avaliacao/${encodeURIComponent(form.catalogKey)}`,
+    image: form.imageDataUrl || undefined,
+    href: `/tela-avaliacao/${encodeURIComponent(form.catalogKey.toLowerCase())}`,
   };
 }
 
@@ -100,7 +71,6 @@ export default function Avaliacao() {
     getPublishedForms({ search: debouncedSearch, page, pageSize: PAGE_SIZE, signal: controller.signal })
       .then(async (result) => {
         const formsWithSnapshots = await Promise.all(result.forms.map(async (form) => {
-          if (legacyForms.some((legacy) => normalizeCatalogKey(legacy.catalogKey) === normalizeCatalogKey(form.catalogKey))) return form;
           try { return await getPublishedForm(form.catalogKey, controller.signal); } catch (requestError) {
             if (requestError instanceof DOMException && requestError.name === "AbortError") throw requestError;
             return form;

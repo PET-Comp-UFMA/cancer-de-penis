@@ -1,6 +1,7 @@
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import ChevronLeftRoundedIcon from "@mui/icons-material/ChevronLeftRounded";
 import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
+import ContentCopyRoundedIcon from "@mui/icons-material/ContentCopyRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import PublishRoundedIcon from "@mui/icons-material/PublishRounded";
@@ -28,6 +29,7 @@ import { getSession, logout } from "@/modules/auth/presentation/api";
 import { AdminFooter, AdminHeader } from "@/modules/admin/presentation/AdminChrome";
 import {
   deleteForm,
+  duplicateForm,
   FormsApiError,
   getForms,
   updateFormStatus,
@@ -72,12 +74,14 @@ function FormRow({
   action,
   form,
   onDelete,
+  onDuplicate,
   onStatusChange,
   username,
 }: {
   action: string | null;
   form: FormListItem;
   onDelete: (form: FormListItem) => void;
+  onDuplicate: (form: FormListItem) => void;
   onStatusChange: (form: FormListItem) => void;
   username: string;
 }) {
@@ -100,7 +104,7 @@ function FormRow({
         gap: { xs: 1.5, sm: 2 },
         gridTemplateColumns: {
           xs: "minmax(0, 1fr)",
-          sm: "minmax(360px, 1.55fr) minmax(155px, 0.75fr) minmax(230px, 1fr) minmax(130px, 0.55fr)",
+          sm: "minmax(360px, 1.55fr) minmax(155px, 0.75fr) minmax(230px, 1fr) minmax(170px, 0.55fr)",
         },
         minHeight: { xs: "auto", sm: 105 },
         px: { xs: 2, sm: 3 },
@@ -209,6 +213,18 @@ function FormRow({
               size="small"
             >
               {isPublished ? <UnpublishedRoundedIcon /> : <PublishRoundedIcon />}
+            </IconButton>
+          </span>
+        </Tooltip>
+        <Tooltip title="Duplicar formulário (cria uma cópia editável)">
+          <span>
+            <IconButton
+              aria-label={`Duplicar ${form.title}`}
+              disabled={actionBusy}
+              onClick={() => onDuplicate(form)}
+              size="small"
+            >
+              <ContentCopyRoundedIcon />
             </IconButton>
           </span>
         </Tooltip>
@@ -471,6 +487,21 @@ export default function FormsHome({ user }: { user: AuthUser }) {
     }
   }
 
+  function handleDuplicate(form: FormListItem) {
+    setAction(`duplicate:${form.id}`);
+    setActionError("");
+    void withCsrf((token) => duplicateForm(form.id, token))
+      .then((copy) => router.push(`/admin/formularios/${copy.id}`))
+      .catch((caught: unknown) => {
+        if (caught instanceof FormsApiError && caught.status === 401) {
+          void router.replace("/admin/login?reason=expired");
+          return;
+        }
+        setActionError(caught instanceof Error ? caught.message : "Não foi possível duplicar o formulário.");
+        setAction(null);
+      });
+  }
+
   function handleDelete(form: FormListItem) {
     if (form.status === "published") return;
     setDeleteTarget(form);
@@ -571,7 +602,7 @@ export default function FormsHome({ user }: { user: AuthUser }) {
                   borderBottom: `1px solid ${BORDER}`,
                   display: { xs: "none", sm: "grid" },
                   gap: 2,
-                  gridTemplateColumns: "minmax(360px, 1.55fr) minmax(155px, 0.75fr) minmax(230px, 1fr) minmax(130px, 0.55fr)",
+                  gridTemplateColumns: "minmax(360px, 1.55fr) minmax(155px, 0.75fr) minmax(230px, 1fr) minmax(170px, 0.55fr)",
                   minHeight: 73,
                   minWidth: 930,
                   px: { xs: 2, sm: 3 },
@@ -588,6 +619,7 @@ export default function FormsHome({ user }: { user: AuthUser }) {
                   form={form}
                   key={form.id}
                   onDelete={handleDelete}
+                  onDuplicate={handleDuplicate}
                   onStatusChange={handleStatusChange}
                   username={user.username}
                 />

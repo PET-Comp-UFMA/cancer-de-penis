@@ -3,20 +3,7 @@ import type { FormDefinition, FormResultBand } from './form-definitions';
 export type ScoreAnswer = { questionId: string; optionId: string };
 export type ScoreResult = { score: number; band: FormResultBand; percentage: number };
 
-function booleanScore(optionId: string): number | undefined {
-  const normalized = optionId.toLocaleLowerCase();
-  if (normalized === 'true' || normalized === 'sim') return 1;
-  if (normalized === 'false' || normalized === 'não' || normalized === 'nao') return 0;
-  return undefined;
-}
-
 function questionOptions(question: FormDefinition['questions'][number]) {
-  if (question.answerType === 'boolean') {
-    return [
-      { id: 'false', label: 'Não', score: 0 },
-      { id: 'true', label: 'Sim', score: 1 },
-    ];
-  }
   return question.options ?? [];
 }
 
@@ -40,15 +27,9 @@ export function computeScore(
   for (const question of form.questions) {
     const answer = answers.find((a) => a.questionId === question.id);
     if (!answer) throw new Error('SCORE_INCOMPLETE_ANSWERS');
-    if (question.answerType === 'boolean') {
-      const value = booleanScore(answer.optionId);
-      if (value === undefined) throw new Error('SCORE_INVALID_ANSWER');
-      score += value;
-    } else {
-      const option = question.options!.find((o) => o.id === answer.optionId);
-      if (!option) throw new Error('SCORE_INVALID_ANSWER');
-      score += option.score as number;
-    }
+    const option = questionOptions(question).find((o) => o.id === answer.optionId);
+    if (!option) throw new Error('SCORE_INVALID_ANSWER');
+    score += option.score as number;
   }
   const percentage = scoreToPercentage(form, score);
   return { score, percentage, band: resolveBand(form.resultBands, percentage) };
