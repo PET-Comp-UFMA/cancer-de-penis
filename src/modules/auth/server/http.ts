@@ -20,7 +20,10 @@ export function authError(res: NextApiResponse, error: unknown) {
     RATE_LIMITED: [429, 'Muitas tentativas. Aguarde 15 minutos e tente novamente.'],
   };
   const publicCode = Object.prototype.hasOwnProperty.call(errors, code) ? code : 'INTERNAL_ERROR';
-  const [status, message] = errors[publicCode] || [503, 'Serviço temporariamente indisponível. Tente novamente.'];
+  const [status, fallbackMessage] = errors[publicCode] || [503, 'Serviço temporariamente indisponível. Tente novamente.'];
+  // A form validation error may carry the specific field to fix (FormDefinitionError.detail).
+  const detail = (error as { detail?: unknown } | null)?.detail;
+  const message = publicCode === 'FORM_INVALID_DEFINITION' && typeof detail === 'string' ? detail : fallbackMessage;
   if (status === 429) res.setHeader('Retry-After', '900');
   return res.status(status).json({ error: message, code: publicCode });
 }

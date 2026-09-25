@@ -27,6 +27,7 @@ import { ChangeEvent, useEffect, useId, useMemo, useState } from "react";
 import type { AuthUser } from "@/modules/auth/presentation/api";
 import { getSession, logout } from "@/modules/auth/presentation/api";
 import { AdminFooter, AdminHeader } from "@/modules/admin/presentation/AdminChrome";
+import { useLeaveGuard } from "@/shared/hooks/useLeaveGuard";
 import {
   createForm,
   duplicateForm,
@@ -38,6 +39,7 @@ import {
 } from "./api";
 import type { FormDefinition, FormQuestionType } from "../domain/types";
 import { questionsComplete, resultBandsComplete } from "../domain/completeness";
+import { cleanAuthorName } from "../domain/author-name";
 
 const GREEN = "#015D67";
 const BACKGROUND = "#FAFCFC";
@@ -120,6 +122,8 @@ function Input({ label, value, onChange, disabled = false, multiline = false, re
 export default function FormEditor({ formId, initialForm }: { user: AuthUser; formId?: string; initialForm?: FormDetail }) {
   const router = useRouter();
   const [definition, setDefinition] = useState<FormDefinition>(initialForm?.definition ?? emptyDefinition);
+  // What the server last stored (or the untouched blank form); anything else is unsaved work.
+  const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify(definition));
   const [currentId, setCurrentId] = useState(formId ?? initialForm?.id ?? "");
   const [revision, setRevision] = useState(initialForm?.revision ?? 0);
   const [status, setStatus] = useState(initialForm?.status ?? "unpublished");
@@ -133,6 +137,8 @@ export default function FormEditor({ formId, initialForm }: { user: AuthUser; fo
   const [draggedQuestion, setDraggedQuestion] = useState<string | null>(null);
   // Once published, a form is frozen for good; the server enforces it too (FORM_PUBLISHED_CANNOT_EDIT).
   const readOnly = everPublished || status === "published";
+  const hasUnsavedChanges = useMemo(() => !readOnly && JSON.stringify(definition) !== savedSnapshot, [definition, readOnly, savedSnapshot]);
+  const leaveGuard = useLeaveGuard(hasUnsavedChanges, "Sair sem salvar? As alterações que você fez neste formulário serão perdidas.");
 
   // Alerts render at the top of the editor; bring them into view.
   useEffect(() => {
@@ -146,7 +152,7 @@ export default function FormEditor({ formId, initialForm }: { user: AuthUser; fo
     const controller = new AbortController();
     getForm(formId, controller.signal).then((form) => {
       if (!active) return;
-      setDefinition(form.definition); setRevision(form.revision); setStatus(form.status); setEverPublished(form.everPublished); setCurrentId(form.id);
+      setDefinition(form.definition); setSavedSnapshot(JSON.stringify(form.definition)); setRevision(form.revision); setStatus(form.status); setEverPublished(form.everPublished); setCurrentId(form.id);
     }).catch((caught: unknown) => {
       if (!active || (caught instanceof DOMException && caught.name === "AbortError")) return;
       if (caught instanceof FormsApiError && caught.status === 401) {
@@ -182,6 +188,7 @@ export default function FormEditor({ formId, initialForm }: { user: AuthUser; fo
       if (!formIdToSave) {
         const created = await withCsrf((token) => createForm(token, definition));
         formIdToSave = created.id; nextRevision = created.revision; setCurrentId(created.id); setRevision(created.revision);
+        setSavedSnapshot(JSON.stringify(definition));
         createdNew = true;
         setStatus(created.status);
         setSuccess("Alterações salvas.");
@@ -189,6 +196,7 @@ export default function FormEditor({ formId, initialForm }: { user: AuthUser; fo
         const saved = await withCsrf((token) => saveFormDefinition(formIdToSave, definition, nextRevision, token));
         setRevision(saved.revision); setStatus(saved.status); setSuccess("Alterações salvas.");
         nextRevision = saved.revision;
+        setSavedSnapshot(JSON.stringify(definition));
       }
       if (nextStatus) {
         const published = await withCsrf((token) => updateFormStatus(formIdToSave, "published", token, nextRevision));
@@ -211,6 +219,13 @@ export default function FormEditor({ formId, initialForm }: { user: AuthUser; fo
   function updateAlternative(questionId: string, alternativeId: string, patch: { label?: string; score?: number | null }) { updateDefinition({ questions: definition.questions.map((question) => question.id === questionId ? { ...question, alternatives: question.alternatives.map((alternative) => alternative.id === alternativeId ? { ...alternative, ...patch } : alternative) } : question) }); }
   function removeQuestion(questionId: string) { updateDefinition({ questions: definition.questions.filter((question) => question.id !== questionId) }); }
   function moveQuestion(fromId: string, toId: string) { const questions = [...definition.questions]; const from = questions.findIndex((question) => question.id === fromId); const to = questions.findIndex((question) => question.id === toId); if (from < 0 || to < 0) return; const [item] = questions.splice(from, 1); questions.splice(to, 0, item); updateDefinition({ questions }); }
+
+  // "Salvar e sair": leave only if the save went through (a failed save shows its warning instead).
+  async function saveAndLeave() {
+    const action = leaveGuard.pendingAction;
+    leaveGuard.stay();
+    if (await persist() && action) await action();
+  }
 
   async function duplicate() {
     setBusy(true); setError(""); setSuccess("");
@@ -250,14 +265,14 @@ export default function FormEditor({ formId, initialForm }: { user: AuthUser; fo
   if (loading) return <Box sx={{ alignItems: "center", display: "flex", justifyContent: "center", minHeight: "60vh" }}><CircularProgress sx={{ color: GREEN }} /></Box>;
 
   return <Box sx={{ bgcolor: BACKGROUND, display: "flex", flexDirection: "column", minHeight: "100vh" }}>
-    <AdminHeader loggingOut={false} onLogout={signOut} />
+    <AdminHeader loggingOut={false} onLogout={() => leaveGuard.guard(signOut)} />
     <Box component="main" data-testid="editor" sx={{ flex: 1, maxWidth: 1315, mx: "auto", px: { xs: 2, md: 3 }, py: { xs: 4, sm: 6 }, width: "100%" }}>
       <Box sx={{ mb: { xs: 3, sm: 5 }, textAlign: "center" }}><Typography component="h1" sx={{ color: GREEN, fontSize: { xs: 28, sm: 40 }, fontWeight: 700, letterSpacing: "-0.03em" }}>{currentId ? (definition.title || "Editar formulário") : "Novo Formulário"}</Typography><Typography sx={{ color: TEXT, fontSize: 13, mt: 1 }}>Crie novas ferramentas de avaliação.</Typography><Box data-testid="stepper" sx={{ alignItems: "center", display: "flex", justifyContent: "center", mx: "auto", mt: 3, maxWidth: { xs: "100%", sm: 447 }, width: "100%" }}>{stepsComplete.map((complete, index) => <Box key={index} sx={{ alignItems: "center", display: "flex", flex: { xs: 1, sm: "0 0 auto" }, minWidth: 0 }}><Box sx={{ alignItems: "center", bgcolor: complete ? GREEN : BACKGROUND, border: `1px solid #47878E`, borderRadius: "50%", color: complete ? "#fff" : "#242E39", display: "flex", flexShrink: 0, fontSize: { xs: 16, sm: 22.69 }, fontWeight: 600, height: { xs: 36, sm: 55.85 }, justifyContent: "center", width: { xs: 36, sm: 55.85 } }}>{complete ? <CheckRoundedIcon sx={{ fontSize: { xs: 21, sm: 30 } }} /> : `0${index + 1}`}</Box>{index < 2 && <Box sx={{ bgcolor: "#47878E", flex: { xs: 1, sm: "0 0 139.63px" }, height: { xs: 2, sm: 3.491 }, minWidth: 0 }} />}</Box>)}</Box></Box>
       {error && <Alert onClose={() => setError("")} severity="error" sx={{ mb: 2 }}>{error}</Alert>}{success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}{readOnly && <Alert action={<Button color="inherit" disabled={busy} onClick={() => void duplicate()} size="small" startIcon={<ContentCopyRoundedIcon />} sx={{ textTransform: "none", whiteSpace: "nowrap" }}>Duplicar formulário</Button>} severity="info" sx={{ mb: 3 }}>Este formulário já foi publicado e não pode mais ser editado. Para fazer mudanças, duplique-o: a cópia pode ser editada e publicada.</Alert>}
       <Box component="fieldset" disabled={busy} onDragStart={(event) => { if (busy) event.preventDefault(); }} sx={{ border: 0, m: 0, minWidth: 0, p: 0 }}>
       <Card sx={{ border: 0, borderRadius: "8px", boxShadow: "0 2px 14px rgba(1, 93, 103, 0.05)", mb: 3 }}>
         <Box sx={{ px: { xs: 2, sm: 3.5 }, pt: { xs: 2.5, sm: 3.5 } }}><Typography component="h2" sx={{ color: GREEN, fontSize: { xs: 19, sm: 22 }, fontWeight: 700 }}>01 - Dados do Formulário</Typography></Box>
-        <CardContent sx={{ p: { xs: 2, sm: 3.5 }, pt: { xs: 2.5, sm: 3 } }}><Box sx={{ display: "grid", gap: { xs: 3, md: 5 }, gridTemplateColumns: { xs: "1fr", md: "minmax(0, 1fr) 340px" } }}><Stack spacing={{ xs: 2.25, sm: 2.75 }}><Input disabled={readOnly} externalLabel fieldHeight={71} label="Nome do Formulário" onChange={(value) => updateDefinition({ title: value })} required value={definition.title} /><Input disabled={readOnly} externalLabel label="Descrição" multiline multilineHeight={125} onChange={(value) => updateDefinition({ description: value })} value={definition.description} /><Box><Typography sx={{ color: TEXT, fontSize: 15, fontWeight: 700, mb: 1.25 }}>Autores do Formulário</Typography>{definition.authors.map((author, index) => <Box key={author.id} sx={{ alignItems: "start", display: "grid", gap: 1, gridTemplateColumns: { xs: "1fr", sm: "auto 1fr 1fr auto" }, mb: 1.5 }}><Box sx={{ alignItems: "center", display: "flex", flexDirection: "column", gap: 0.25, mt: { xs: 0, sm: 2.5 } }}><Tooltip title={readOnly ? "" : author.imageDataUrl ? "Trocar foto" : "Adicionar foto"}><span><IconButton aria-label={`Foto do autor ${index + 1}`} component="label" disabled={readOnly} sx={{ p: 0 }}><Avatar alt={author.name} src={author.imageDataUrl ?? undefined} sx={{ bgcolor: "#E7F0F0", color: GREEN, height: 52, width: 52 }}><PhotoCameraOutlinedIcon /></Avatar><input accept="image/*" hidden onChange={(event) => handleAuthorPhoto(author.id, event)} type="file" /></IconButton></span></Tooltip>{author.imageDataUrl && !readOnly && <Button onClick={() => setAuthorPhoto(author.id, null)} size="small" sx={{ color: TEXT, fontSize: 10, minWidth: 0, p: 0, textTransform: "none" }}>Remover</Button>}</Box><Input disabled={readOnly} externalLabel fieldHeight={71} label="Nome do Autor" onChange={(value) => updateDefinition({ authors: definition.authors.map((item) => item.id === author.id ? { ...item, name: value } : item) })} value={author.name} /><Input disabled={readOnly} externalLabel fieldHeight={71} label="Instituição" onChange={(value) => updateDefinition({ authors: definition.authors.map((item) => item.id === author.id ? { ...item, institution: value } : item) })} value={author.institution} /><IconButton aria-label={`Remover autor ${index + 1}`} disabled={readOnly || definition.authors.length === 1} onClick={() => updateDefinition({ authors: definition.authors.filter((item) => item.id !== author.id) })} sx={{ justifySelf: { xs: "start", sm: "auto" }, mt: { xs: 0, sm: 3 } }}><RemoveCircleOutlineRoundedIcon /></IconButton></Box>)}<Button disabled={readOnly} onClick={() => updateDefinition({ authors: [...definition.authors, { id: id("author"), name: "", institution: "" }] })} startIcon={<AddRoundedIcon />} sx={{ color: GREEN, textTransform: "none" }}>Adicionar autor</Button></Box><Box sx={{ alignItems: { xs: "stretch", sm: "center" }, display: "flex", flexDirection: { xs: "column", sm: "row" }, gap: 2 }}><Button component="label" disabled={readOnly} startIcon={<ImageOutlinedIcon />} sx={{ bgcolor: GREEN, color: "#fff", textTransform: "none", "&:hover": { bgcolor: "#014b53" } }}>Adicionar imagem<input accept="image/*" hidden onChange={handleImage} type="file" /></Button>{definition.imageDataUrl && <Box component="img" alt="Pré-visualização da imagem do formulário" src={definition.imageDataUrl} sx={{ borderRadius: 2, height: 82, objectFit: "cover", width: 140 }} />}</Box></Stack><Box sx={{ alignItems: "center", bgcolor: "#E7F0F0", borderRadius: 2, display: "flex", minHeight: { xs: 180, md: 270 }, overflow: "hidden", position: "relative" }}>{definition.imageDataUrl ? <Box component="img" alt="Pré-visualização da imagem do formulário" src={definition.imageDataUrl} sx={{ height: "100%", objectFit: "cover", position: "absolute", width: "100%" }} /> : <Box component="img" alt="Imagem demonstrativa" src="/Rounded-Rectangle.svg" sx={{ height: "100%", objectFit: "cover", opacity: .85, width: "100%" }} />}</Box></Box></CardContent>
+        <CardContent sx={{ p: { xs: 2, sm: 3.5 }, pt: { xs: 2.5, sm: 3 } }}><Box sx={{ display: "grid", gap: { xs: 3, md: 5 }, gridTemplateColumns: { xs: "1fr", md: "minmax(0, 1fr) 340px" } }}><Stack spacing={{ xs: 2.25, sm: 2.75 }}><Input disabled={readOnly} externalLabel fieldHeight={71} label="Nome do Formulário" onChange={(value) => updateDefinition({ title: value })} required value={definition.title} /><Input disabled={readOnly} externalLabel label="Descrição" multiline multilineHeight={125} onChange={(value) => updateDefinition({ description: value })} value={definition.description} /><Box><Typography sx={{ color: TEXT, fontSize: 15, fontWeight: 700, mb: 1.25 }}>Autores do Formulário</Typography>{definition.authors.map((author, index) => <Box key={author.id} sx={{ alignItems: "start", display: "grid", gap: 1, gridTemplateColumns: { xs: "1fr", sm: "auto 1fr 1fr auto" }, mb: 1.5 }}><Box sx={{ alignItems: "center", display: "flex", flexDirection: "column", gap: 0.25, mt: { xs: 0, sm: 2.5 } }}><Tooltip title={readOnly ? "" : author.imageDataUrl ? "Trocar foto" : "Adicionar foto"}><span><IconButton aria-label={`Foto do autor ${index + 1}`} component="label" disabled={readOnly} sx={{ p: 0 }}><Avatar alt={author.name} src={author.imageDataUrl ?? undefined} sx={{ bgcolor: "#E7F0F0", color: GREEN, height: 52, width: 52 }}><PhotoCameraOutlinedIcon /></Avatar><input accept="image/*" hidden onChange={(event) => handleAuthorPhoto(author.id, event)} type="file" /></IconButton></span></Tooltip>{author.imageDataUrl && !readOnly && <Button onClick={() => setAuthorPhoto(author.id, null)} size="small" sx={{ color: TEXT, fontSize: 10, minWidth: 0, p: 0, textTransform: "none" }}>Remover</Button>}</Box><Input disabled={readOnly} externalLabel fieldHeight={71} label="Nome do Autor" onChange={(value) => updateDefinition({ authors: definition.authors.map((item) => item.id === author.id ? { ...item, name: cleanAuthorName(value) } : item) })} value={author.name} /><Input disabled={readOnly} externalLabel fieldHeight={71} label="Instituição" onChange={(value) => updateDefinition({ authors: definition.authors.map((item) => item.id === author.id ? { ...item, institution: value } : item) })} value={author.institution} /><IconButton aria-label={`Remover autor ${index + 1}`} disabled={readOnly || definition.authors.length === 1} onClick={() => updateDefinition({ authors: definition.authors.filter((item) => item.id !== author.id) })} sx={{ justifySelf: { xs: "start", sm: "auto" }, mt: { xs: 0, sm: 3 } }}><RemoveCircleOutlineRoundedIcon /></IconButton></Box>)}<Button disabled={readOnly} onClick={() => updateDefinition({ authors: [...definition.authors, { id: id("author"), name: "", institution: "" }] })} startIcon={<AddRoundedIcon />} sx={{ color: GREEN, textTransform: "none" }}>Adicionar autor</Button></Box><Box sx={{ alignItems: { xs: "stretch", sm: "center" }, display: "flex", flexDirection: { xs: "column", sm: "row" }, gap: 2 }}><Button component="label" disabled={readOnly} startIcon={<ImageOutlinedIcon />} sx={{ bgcolor: GREEN, color: "#fff", textTransform: "none", "&:hover": { bgcolor: "#014b53" } }}>Adicionar imagem<input accept="image/*" hidden onChange={handleImage} type="file" /></Button>{definition.imageDataUrl && <Box component="img" alt="Pré-visualização da imagem do formulário" src={definition.imageDataUrl} sx={{ borderRadius: 2, height: 82, objectFit: "cover", width: 140 }} />}</Box></Stack><Box sx={{ alignItems: "center", bgcolor: "#E7F0F0", borderRadius: 2, display: "flex", minHeight: { xs: 180, md: 270 }, overflow: "hidden", position: "relative" }}>{definition.imageDataUrl ? <Box component="img" alt="Pré-visualização da imagem do formulário" src={definition.imageDataUrl} sx={{ height: "100%", objectFit: "cover", position: "absolute", width: "100%" }} /> : <Box component="img" alt="Imagem demonstrativa" src="/Rounded-Rectangle.svg" sx={{ height: "100%", objectFit: "cover", opacity: .85, width: "100%" }} />}</Box></Box></CardContent>
       </Card>
 
       <Card data-testid="questions-step" sx={{ border: 0, borderRadius: "8px", boxShadow: "0 2px 14px rgba(1, 93, 103, 0.05)", mb: 3, overflow: "hidden" }}>
@@ -277,7 +292,7 @@ export default function FormEditor({ formId, initialForm }: { user: AuthUser; fo
       </Card>
 
       </Box>
-      <Box sx={{ alignItems: { xs: "stretch", sm: "center" }, display: "flex", flexWrap: "wrap", gap: 1.5, justifyContent: "flex-end", pb: 3, pt: 1 }}><Button data-testid="back-form" onClick={() => router.push("/admin/formularios")} sx={{ border: `1px solid ${GREEN}`, color: GREEN, minWidth: 112, textTransform: "none" }}>Voltar</Button><Button data-testid="save-form" disabled={busy || readOnly || !definition.title.trim()} onClick={() => void persist()} sx={{ bgcolor: GREEN, color: "#fff", minWidth: 160, textTransform: "none", "&:hover": { bgcolor: "#014b53" } }}>{busy ? "Salvando..." : "Salvar alterações"}</Button><Tooltip title={readOnly || canPublish ? "" : `Para publicar, complete: ${missingSteps.join("; ")}.`}><span><Button data-testid="publish-form" disabled={busy || readOnly || !canPublish} onClick={() => void persist("published")} sx={{ bgcolor: GREEN, color: "#fff", minWidth: 170, textTransform: "none", "&:hover": { bgcolor: "#014b53" }, "&.Mui-disabled": { bgcolor: "#B9C9CA", color: "#fff" } }}>{busy ? "Publicando..." : "Publicar Formulário"}</Button></span></Tooltip></Box>
+      <Box sx={{ alignItems: { xs: "stretch", sm: "center" }, display: "flex", flexWrap: "wrap", gap: 1.5, justifyContent: "flex-end", pb: 3, pt: 1 }}><Button data-testid="back-form" onClick={() => leaveGuard.guard(() => router.push("/admin/formularios"))} sx={{ border: `1px solid ${GREEN}`, color: GREEN, minWidth: 112, textTransform: "none" }}>Voltar</Button><Button data-testid="save-form" disabled={busy || readOnly || !definition.title.trim()} onClick={() => void persist()} sx={{ bgcolor: GREEN, color: "#fff", minWidth: 160, textTransform: "none", "&:hover": { bgcolor: "#014b53" } }}>{busy ? "Salvando..." : "Salvar alterações"}</Button><Tooltip title={readOnly || canPublish ? "" : `Para publicar, complete: ${missingSteps.join("; ")}.`}><span><Button data-testid="publish-form" disabled={busy || readOnly || !canPublish} onClick={() => void persist("published")} sx={{ bgcolor: GREEN, color: "#fff", minWidth: 170, textTransform: "none", "&:hover": { bgcolor: "#014b53" }, "&.Mui-disabled": { bgcolor: "#B9C9CA", color: "#fff" } }}>{busy ? "Publicando..." : "Publicar Formulário"}</Button></span></Tooltip></Box>
     </Box><AdminFooter />
     <Dialog data-testid="question-type-dialog" onClose={() => setTypeDialog(false)} open={typeDialog} slotProps={{ paper: { sx: { borderRadius: "9px", maxWidth: 440, p: { xs: 3, sm: 4 }, position: "relative", width: "100%" } } }}>
       <IconButton aria-label="Fechar" onClick={() => setTypeDialog(false)} sx={{ position: "absolute", right: 16, top: 16 }}>
@@ -308,6 +323,15 @@ export default function FormEditor({ formId, initialForm }: { user: AuthUser; fo
           </Box>
         ))}
       </Stack>
+    </Dialog>
+    <Dialog data-testid="leave-dialog" onClose={leaveGuard.stay} open={leaveGuard.leaveRequested} slotProps={{ paper: { sx: { borderRadius: "12px", maxWidth: 600, p: { xs: 3, sm: 4 }, width: "100%" } } }}>
+      <Typography component="h2" sx={{ color: GREEN, fontSize: { xs: 22, sm: 26 }, fontWeight: 700, mb: 2 }}>Sair sem salvar?</Typography>
+      <Typography sx={{ color: TEXT, fontSize: 17, mb: 3.5 }}>Você fez alterações neste formulário que ainda não foram salvas. Se sair agora, elas serão perdidas. Você pode salvar antes de sair.</Typography>
+      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, justifyContent: "flex-end" }}>
+        <Button onClick={leaveGuard.stay} sx={{ border: `1px solid ${GREEN}`, borderRadius: "5px", color: GREEN, px: 2.5, textTransform: "none", fontWeight: 700 }}>Continuar editando</Button>
+        <Button onClick={() => void leaveGuard.leave()} sx={{ border: "1px solid #D32F2F", borderRadius: "5px", color: "#D32F2F", px: 2.5, textTransform: "none", fontWeight: 700 }}>Sair sem salvar</Button>
+        <Button disabled={busy} onClick={() => void saveAndLeave()} sx={{ bgcolor: GREEN, borderRadius: "5px", color: "#fff", px: 2.5, textTransform: "none", fontWeight: 700, "&:hover": { bgcolor: "#014b53" } }}>{busy ? "Salvando..." : "Salvar e sair"}</Button>
+      </Box>
     </Dialog>
   </Box>;
 }

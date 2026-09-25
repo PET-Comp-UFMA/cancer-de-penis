@@ -232,6 +232,13 @@ test('API cria, recarrega e publica uma definição completa com revisão', asyn
     }],
     resultBands: [{ id: 'band-1', minScore: 0, maxScore: 100, risk: 'Resultado', description: '' }],
   };
+  const rejected = await browser.request('/api/formularios', {
+    definition: { ...definition, resultBands: [{ ...definition.resultBands[0], maxScore: 150 }] },
+  }, 'POST');
+  assert.equal(rejected.status, 400);
+  assert.equal(rejected.data.code, 'FORM_INVALID_DEFINITION');
+  assert.equal(rejected.data.error, 'Na faixa 1, "Até" (150) precisa estar entre 0 e 100%.');
+
   const created = await browser.request('/api/formularios', { definition }, 'POST');
   assert.equal(created.status, 201);
   assert.equal(created.data.definitionState, 'complete');

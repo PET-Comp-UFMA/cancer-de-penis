@@ -7,6 +7,7 @@ import type {
   FormDefinition,
 } from '../domain/types';
 import { definitionState } from '../domain/completeness';
+import { isValidAuthorName } from '../domain/author-name';
 import {
   createForm,
   deleteOwnedForm,
@@ -98,58 +99,112 @@ function hasUniqueIds(items: Array<{ id: string }>) {
   return new Set(items.map((item) => item.id)).size === items.length;
 }
 
+// Keeps the FORM_INVALID_DEFINITION code but carries a reason the editor can
+// show, so the person knows which field to fix.
+export class FormDefinitionError extends Error {
+  constructor(readonly detail: string) {
+    super('FORM_INVALID_DEFINITION');
+  }
+}
+
+const STRUCTURE_ERROR = 'Os dados do formulário chegaram em um formato inesperado. Recarregue a página e tente novamente.';
+
+function invalid(detail: string): never {
+  throw new FormDefinitionError(detail);
+}
+
+function textField(value: unknown, field: string): string {
+  if (typeof value !== 'string') invalid(STRUCTURE_ERROR);
+  if (value.length > MAX_TEXT) invalid(`${field} passou do limite de ${MAX_TEXT.toLocaleString('pt-BR')} caracteres.`);
+  return value;
+}
+
+function authorName(name: string, n: number): string {
+  if (!isValidAuthorName(name)) invalid(`O nome do autor ${n} só pode ter letras, espaços, apóstrofo e ponto.`);
+  return name;
+}
+
+function imageField(value: unknown, max: number, field: string): string | null {
+  if (value === null) return null;
+  if (validImageDataUrl(value, max)) return value;
+  if (typeof value === 'string' && value.length > max) invalid(`${field} é grande demais. Escolha uma imagem menor.`);
+  return invalid(`${field} precisa ser uma imagem PNG, JPEG, WebP ou GIF.`);
+}
+
+function listField(value: unknown, label: string): unknown[] {
+  if (!Array.isArray(value)) invalid(STRUCTURE_ERROR);
+  if (value.length > MAX_ITEMS) invalid(`O formulário pode ter no máximo ${MAX_ITEMS} ${label}.`);
+  return value;
+}
+
+function record(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) invalid(STRUCTURE_ERROR);
+  return value as Record<string, unknown>;
+}
+
+function idField(value: unknown): string {
+  if (!validId(value)) invalid(STRUCTURE_ERROR);
+  return value;
+}
+
+function uniqueIds<T extends { id: string }>(items: T[]): T[] {
+  if (!hasUniqueIds(items)) invalid(STRUCTURE_ERROR);
+  return items;
+}
+
 export function validateFormDefinition(value: unknown): FormDefinition {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('FORM_INVALID_DEFINITION');
-  const input = value as Record<string, unknown>;
-  if (input.schemaVersion !== 1 || !validText(input.title) || !validText(input.description)
-    || (input.imageDataUrl !== null && !validImageDataUrl(input.imageDataUrl, MAX_IMAGE_DATA_URL_LENGTH))) {
-    throw new Error('FORM_INVALID_DEFINITION');
-  }
-  if (!Array.isArray(input.authors) || input.authors.length > MAX_ITEMS
-    || !Array.isArray(input.questions) || input.questions.length > MAX_ITEMS
-    || !Array.isArray(input.resultBands) || input.resultBands.length > MAX_ITEMS) {
-    throw new Error('FORM_INVALID_DEFINITION');
-  }
-  const authors = input.authors.map((author) => {
-    if (!author || typeof author !== 'object' || Array.isArray(author)) throw new Error('FORM_INVALID_DEFINITION');
-    const item = author as Record<string, unknown>;
-    const photo = item.imageDataUrl ?? null;
-    if (!validId(item.id) || !validText(item.name) || !validText(item.institution)
-      || (photo !== null && !validImageDataUrl(photo, MAX_AUTHOR_PHOTO_LENGTH))) throw new Error('FORM_INVALID_DEFINITION');
-    return { id: item.id, name: item.name, institution: item.institution, imageDataUrl: photo as string | null };
-  });
-  if (!hasUniqueIds(authors)) throw new Error('FORM_INVALID_DEFINITION');
-  const questions = input.questions.map((question) => {
-    if (!question || typeof question !== 'object' || Array.isArray(question)) throw new Error('FORM_INVALID_DEFINITION');
-    const item = question as Record<string, unknown>;
-    if (!validId(item.id) || !validText(item.prompt) || (item.type !== 'two-options' && item.type !== 'likert')
-      || !Array.isArray(item.alternatives) || item.alternatives.length > MAX_ITEMS
-      || item.alternatives.length < (item.type === 'two-options' ? 2 : 3)) throw new Error('FORM_INVALID_DEFINITION');
-    const alternatives = item.alternatives.map((alternative) => {
-      if (!alternative || typeof alternative !== 'object' || Array.isArray(alternative)) throw new Error('FORM_INVALID_DEFINITION');
-      const alt = alternative as Record<string, unknown>;
-      if (!validId(alt.id) || !validText(alt.label) || !validFiniteOrNull(alt.score)) throw new Error('FORM_INVALID_DEFINITION');
-      return { id: alt.id, label: alt.label, score: alt.score };
-    });
-    if (!hasUniqueIds(alternatives)) throw new Error('FORM_INVALID_DEFINITION');
-    return { id: item.id, prompt: item.prompt, type: item.type, alternatives } as FormDefinition['questions'][number];
-  });
-  if (!hasUniqueIds(questions)) throw new Error('FORM_INVALID_DEFINITION');
-  const resultBands = input.resultBands.map((band) => {
-    if (!band || typeof band !== 'object' || Array.isArray(band)) throw new Error('FORM_INVALID_DEFINITION');
-    const item = band as Record<string, unknown>;
-    if (!validId(item.id) || !validFiniteOrNull(item.minScore) || !validFiniteOrNull(item.maxScore)
-      || !validText(item.risk) || !validText(item.description)
-      || (item.minScore !== null && (item.minScore < 0 || item.minScore > 100))
-      || (item.maxScore !== null && (item.maxScore < 0 || item.maxScore > 100))
-      || (item.minScore !== null && item.maxScore !== null && item.minScore > item.maxScore)) throw new Error('FORM_INVALID_DEFINITION');
-    return { id: item.id, minScore: item.minScore, maxScore: item.maxScore, risk: item.risk, description: item.description };
-  });
-  if (!hasUniqueIds(resultBands)) throw new Error('FORM_INVALID_DEFINITION');
-  return {
-    schemaVersion: 1, title: input.title, description: input.description,
-    imageDataUrl: input.imageDataUrl as string | null, authors, questions, resultBands,
-  };
+  const input = record(value);
+  if (input.schemaVersion !== 1) invalid(STRUCTURE_ERROR);
+  const title = textField(input.title, 'O nome do formulário');
+  const description = textField(input.description, 'A descrição do formulário');
+  const imageDataUrl = imageField(input.imageDataUrl, MAX_IMAGE_DATA_URL_LENGTH, 'A imagem do formulário');
+
+  const authors = uniqueIds(listField(input.authors, 'autores').map((author, index) => {
+    const item = record(author);
+    const n = index + 1;
+    return {
+      id: idField(item.id),
+      name: authorName(textField(item.name, `O nome do autor ${n}`), n),
+      institution: textField(item.institution, `A instituição do autor ${n}`),
+      imageDataUrl: imageField(item.imageDataUrl ?? null, MAX_AUTHOR_PHOTO_LENGTH, `A foto do autor ${n}`),
+    };
+  }));
+
+  const questions = uniqueIds(listField(input.questions, 'perguntas').map((question, index) => {
+    const item = record(question);
+    const n = index + 1;
+    if (item.type !== 'two-options' && item.type !== 'likert') invalid(STRUCTURE_ERROR);
+    const minimum = item.type === 'two-options' ? 2 : 3;
+    const rawAlternatives = listField(item.alternatives, `alternativas na pergunta ${n}`);
+    if (rawAlternatives.length < minimum) invalid(`A pergunta ${n} precisa de pelo menos ${minimum} alternativas.`);
+    const alternatives = uniqueIds(rawAlternatives.map((alternative, altIndex) => {
+      const alt = record(alternative);
+      const where = `da alternativa ${altIndex + 1} da pergunta ${n}`;
+      if (!validFiniteOrNull(alt.score)) invalid(`A pontuação ${where} precisa ser um número.`);
+      return { id: idField(alt.id), label: textField(alt.label, `O texto ${where}`), score: alt.score };
+    }));
+    return { id: idField(item.id), prompt: textField(item.prompt, `O texto da pergunta ${n}`), type: item.type, alternatives } as FormDefinition['questions'][number];
+  }));
+
+  const resultBands = uniqueIds(listField(input.resultBands, 'faixas de resultado').map((band, index) => {
+    const item = record(band);
+    const n = index + 1;
+    const { minScore, maxScore } = item;
+    if (!validFiniteOrNull(minScore) || !validFiniteOrNull(maxScore)) invalid(`A faixa ${n} precisa ter números em "De" e "Até".`);
+    for (const [bound, label] of [[minScore, 'De'], [maxScore, 'Até']] as const) {
+      if (bound !== null && (bound < 0 || bound > 100)) invalid(`Na faixa ${n}, "${label}" (${bound}) precisa estar entre 0 e 100%.`);
+    }
+    if (minScore !== null && maxScore !== null && minScore > maxScore) {
+      invalid(`Na faixa ${n}, "De" (${minScore}%) está maior que "Até" (${maxScore}%).`);
+    }
+    return {
+      id: idField(item.id), minScore, maxScore,
+      risk: textField(item.risk, `O resultado da faixa ${n}`),
+      description: textField(item.description, `A descrição da faixa ${n}`),
+    };
+  }));
+
+  return { schemaVersion: 1, title, description, imageDataUrl, authors, questions, resultBands };
 }
 
 export { definitionState };
