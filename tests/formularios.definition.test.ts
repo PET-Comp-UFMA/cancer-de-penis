@@ -1,8 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { definitionState, validateFormDefinition } from "../src/modules/formularios/application/service";
+import { definitionState, FormDefinitionError, validateFormDefinition } from "../src/modules/formularios/application/service";
 import type { FormDefinition } from "../src/modules/formularios/domain/types";
 import { slugCandidates, slugify } from "../src/modules/formularios/domain/slug";
+import { cleanAuthorName, isValidAuthorName } from "../src/modules/formularios/domain/author-name";
 
 function completeDefinition(): FormDefinition {
   return {
@@ -91,4 +92,53 @@ test("endereço público é gerado a partir do nome do formulário", () => {
   const next = slugCandidates("PENRISK");
   assert.deepEqual([next(1), next(2), next(3)], ["penrisk", "penrisk-2", "penrisk-3"]);
   assert.equal(slugCandidates("Tela Avaliação")(1), "tela-avaliacao-2");
+});
+
+function reason(definition: unknown) {
+  try {
+    validateFormDefinition(definition);
+  } catch (error) {
+    assert.ok(error instanceof FormDefinitionError);
+    assert.equal(error.message, "FORM_INVALID_DEFINITION");
+    return error.detail;
+  }
+  assert.fail("era esperado um erro de validação");
+}
+
+test("erros de validação dizem qual campo corrigir", () => {
+  const outOfRange = completeDefinition();
+  outOfRange.resultBands[0].maxScore = 150;
+  assert.equal(reason(outOfRange), 'Na faixa 1, "Até" (150) precisa estar entre 0 e 100%.');
+
+  const inverted = completeDefinition();
+  inverted.resultBands[0].minScore = 60;
+  inverted.resultBands[0].maxScore = 20;
+  assert.equal(reason(inverted), 'Na faixa 1, "De" (60%) está maior que "Até" (20%).');
+
+  const longPrompt = completeDefinition();
+  longPrompt.questions[0].prompt = "x".repeat(10_001);
+  assert.match(reason(longPrompt) ?? "", /^O texto da pergunta 1 passou do limite de 10\.000 caracteres\.$/);
+
+  const fewAlternatives = completeDefinition();
+  fewAlternatives.questions[0] = { ...fewAlternatives.questions[0], type: "likert" };
+  assert.equal(reason(fewAlternatives), "A pergunta 1 precisa de pelo menos 3 alternativas.");
+
+  const badPhoto = completeDefinition();
+  badPhoto.authors[0].imageDataUrl = "data:text/html;base64,AAAA";
+  assert.equal(reason(badPhoto), "A foto do autor 1 precisa ser uma imagem PNG, JPEG, WebP ou GIF.");
+
+  assert.match(reason({ ...completeDefinition(), schemaVersion: 2 }) ?? "", /formato inesperado/);
+});
+
+test("nome do autor aceita só letras (com acento), espaços, apóstrofo e ponto", () => {
+  assert.ok(isValidAuthorName("Maria José da Conceição"));
+  assert.ok(isValidAuthorName("Ângela Müller"));
+  assert.ok(isValidAuthorName(""));
+  for (const good of ["Dr. Silva", "D'Ávila", "D’Ávila", "J. R. R. Tolkien"]) assert.ok(isValidAuthorName(good), good);
+  for (const bad of ["Ana 2", "João!", "Ana-Clara", "maria@ufma", "Silva, J."]) assert.equal(isValidAuthorName(bad), false, bad);
+  assert.equal(cleanAuthorName("Dr. João2! D'Ávila#"), "Dr. João D'Ávila");
+
+  const withDigit = completeDefinition();
+  withDigit.authors[0].name = "Autora 1";
+  assert.equal(reason(withDigit), "O nome do autor 1 só pode ter letras, espaços, apóstrofo e ponto.");
 });

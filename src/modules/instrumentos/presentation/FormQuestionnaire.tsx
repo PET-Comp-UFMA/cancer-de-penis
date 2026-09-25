@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
-import { Alert, Box, Button, FormControl, FormControlLabel, Radio, RadioGroup, Typography } from "@mui/material";
+import { Alert, Box, Button, Dialog, FormControl, FormControlLabel, Radio, RadioGroup, Typography } from "@mui/material";
+import { useLeaveGuard } from "@/shared/hooks/useLeaveGuard";
 import type { FormDefinition } from "../domain/form-definitions";
 import { getFormBasePath, getFormResultPath } from "../domain/form-definitions";
 import { computeScore, isScorable, type ScoreAnswer } from "../domain/scoring";
@@ -35,6 +36,10 @@ export default function FormQuestionnaire({ form }: FormQuestionnaireProps) {
     clearResult(form.catalogKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.catalogKey]);
+  const leaveGuard = useLeaveGuard(
+    answers.some((answer) => answer !== null),
+    "Sair do questionário? Suas respostas não são salvas e você vai precisar responder tudo de novo.",
+  );
 
   if (form.questionnaireStatus !== "ready" || form.questions.length === 0) {
     return <Box sx={{ width: "100%", maxWidth: 640, mx: "auto", py: 4 }}>
@@ -67,7 +72,7 @@ export default function FormQuestionnaire({ form }: FormQuestionnaireProps) {
     setCurrentIndex((index) => index + 1);
   }
 
-  return <Box sx={{ width: "100%", maxWidth: 824, mx: "auto" }}>
+  return <><Box sx={{ width: "100%", maxWidth: 824, mx: "auto" }}>
     <QuestionProgress currentIndex={currentIndex} total={form.questions.length} />
     <Box sx={{ mt: { xs: 4, md: 5 } }}>
       <Typography component="p" sx={{ color: "#1F6C75", fontSize: 24, lineHeight: 1.1, fontWeight: 700, mb: 1.25 }}>{currentIndex + 1}.</Typography>
@@ -107,5 +112,13 @@ export default function FormQuestionnaire({ form }: FormQuestionnaireProps) {
       </Box>
       <Button href={getFormBasePath(form)} variant="outlined" sx={{ width: { xs: "100%", sm: "auto" }, minHeight: 39, borderColor: "#015D67", color: "#015D67", borderRadius: 2, px: 2.5, textTransform: "none", fontWeight: 700 }}>Cancelar</Button>
     </Box>
-  </Box>;
+  </Box>
+  <Dialog onClose={leaveGuard.stay} open={leaveGuard.leaveRequested} slotProps={{ paper: { sx: { borderRadius: "12px", maxWidth: 480, p: { xs: 3, sm: 4 }, width: "100%" } } }}>
+    <Typography component="h2" sx={{ color: "#015D67", fontSize: { xs: 22, sm: 26 }, fontWeight: 700, mb: 2 }}>Sair do questionário?</Typography>
+    <Typography sx={{ color: "#425466", fontSize: 17, mb: 3.5 }}>Por privacidade, suas respostas não são salvas. Se sair agora, você vai precisar responder tudo de novo.</Typography>
+    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, justifyContent: "flex-end" }}>
+      <Button onClick={leaveGuard.stay} sx={{ border: "1px solid #015D67", borderRadius: "5px", color: "#015D67", px: 2.5, textTransform: "none", fontWeight: 700 }}>Continuar respondendo</Button>
+      <Button onClick={() => void leaveGuard.leave()} sx={{ bgcolor: "#015D67", borderRadius: "5px", color: "#fff", px: 2.5, textTransform: "none", fontWeight: 700, "&:hover": { bgcolor: "#004B53" } }}>Sair</Button>
+    </Box>
+  </Dialog></>;
 }
