@@ -4,6 +4,7 @@ import { definitionState, FormDefinitionError, validateFormDefinition } from "..
 import type { FormDefinition } from "../src/modules/formularios/domain/types";
 import { slugCandidates, slugify } from "../src/modules/formularios/domain/slug";
 import { cleanAuthorName, isValidAuthorName } from "../src/modules/formularios/domain/author-name";
+import { TEXT_LIMITS } from "../src/modules/formularios/domain/limits";
 
 function completeDefinition(): FormDefinition {
   return {
@@ -116,8 +117,8 @@ test("erros de validação dizem qual campo corrigir", () => {
   assert.equal(reason(inverted), 'Na faixa 1, "De" (60%) está maior que "Até" (20%).');
 
   const longPrompt = completeDefinition();
-  longPrompt.questions[0].prompt = "x".repeat(10_001);
-  assert.match(reason(longPrompt) ?? "", /^O texto da pergunta 1 passou do limite de 10\.000 caracteres\.$/);
+  longPrompt.questions[0].prompt = "x".repeat(TEXT_LIMITS.question + 1);
+  assert.equal(reason(longPrompt), `O texto da pergunta 1 passou do limite de ${TEXT_LIMITS.question} caracteres (tem ${TEXT_LIMITS.question + 1}).`);
 
   const fewAlternatives = completeDefinition();
   fewAlternatives.questions[0] = { ...fewAlternatives.questions[0], type: "likert" };
@@ -141,4 +142,25 @@ test("nome do autor aceita só letras (com acento), espaços, apóstrofo e ponto
   const withDigit = completeDefinition();
   withDigit.authors[0].name = "Autora 1";
   assert.equal(reason(withDigit), "O nome do autor 1 só pode ter letras, espaços, apóstrofo e ponto.");
+});
+
+test("cada campo de texto tem um limite de caracteres", () => {
+  const atLimit = completeDefinition();
+  atLimit.title = "t".repeat(TEXT_LIMITS.title);
+  atLimit.description = "d".repeat(TEXT_LIMITS.description);
+  atLimit.authors[0].name = "a".repeat(TEXT_LIMITS.authorName);
+  atLimit.authors[0].institution = "i".repeat(TEXT_LIMITS.institution);
+  atLimit.questions[0].prompt = "p".repeat(TEXT_LIMITS.question);
+  atLimit.questions[0].alternatives[0].label = "l".repeat(TEXT_LIMITS.alternative);
+  atLimit.resultBands[0].risk = "r".repeat(TEXT_LIMITS.risk);
+  atLimit.resultBands[0].description = "b".repeat(TEXT_LIMITS.bandDescription);
+  assert.doesNotThrow(() => validateFormDefinition(atLimit));
+
+  const longTitle = completeDefinition();
+  longTitle.title = "t".repeat(TEXT_LIMITS.title + 1);
+  assert.equal(reason(longTitle), `O nome do formulário passou do limite de ${TEXT_LIMITS.title} caracteres (tem ${TEXT_LIMITS.title + 1}).`);
+
+  const longRisk = completeDefinition();
+  longRisk.resultBands[0].risk = "r".repeat(TEXT_LIMITS.risk + 1);
+  assert.match(reason(longRisk) ?? "", /^O resultado da faixa 1 passou do limite/);
 });

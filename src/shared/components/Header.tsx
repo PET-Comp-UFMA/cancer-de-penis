@@ -14,6 +14,7 @@ import {
 import MenuIcon from "@mui/icons-material/Menu";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { useAdminPreview } from "./AdminPreviewContext";
 
 const menuItems = [
   { label: "Início", href: "/" },
@@ -25,6 +26,10 @@ const menuItems = [
 export default function Header() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const adminPreview = useAdminPreview();
+  const items = adminPreview
+    ? [...menuItems, { label: "Painel Admin", href: "/admin/formularios" }]
+    : menuItems;
 
   return (
     <>
@@ -35,7 +40,7 @@ export default function Header() {
       >
         <Toolbar sx={{ display: "flex", justifyContent: "space-between" }}>
           {/* Logo */}
-          <Box sx={{ display: "flex", alignItems: "center" }}>
+          <Box component="a" href="/" aria-label="Página inicial" sx={{ display: "flex", alignItems: "center" }}>
             <img
               src="/logo-avaliapen.svg"
               alt="Logo site"
@@ -43,8 +48,8 @@ export default function Header() {
             />
           </Box>
 
-          <Box sx={{ display: { xs: "none", md: "flex" }, gap: 10, px: 2 }}>
-            {menuItems.map((item) => {
+          <Box sx={{ display: { xs: "none", md: "flex" }, gap: { md: 4, lg: 10 }, px: 2 }}>
+            {items.map((item) => {
               const isActive = pathname === item.href;
 
               return (
@@ -57,6 +62,7 @@ export default function Header() {
                     fontWeight: 500,
                     position: "relative",
                     pb: "6px",
+                    whiteSpace: "nowrap",
 
                     "&::after": {
                       content: '""',
@@ -102,7 +108,7 @@ export default function Header() {
           }}
         >
           <List>
-            {menuItems.map((item) => (
+            {items.map((item) => (
               <ListItem
                 key={item.label}
                 component="a"

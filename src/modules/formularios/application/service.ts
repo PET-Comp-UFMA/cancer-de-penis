@@ -8,6 +8,7 @@ import type {
 } from '../domain/types';
 import { definitionState } from '../domain/completeness';
 import { isValidAuthorName } from '../domain/author-name';
+import { TEXT_LIMITS } from '../domain/limits';
 import {
   createForm,
   deleteOwnedForm,
@@ -25,7 +26,6 @@ const MAX_SEARCH_LENGTH = 100;
 const MAX_PAGE = 100_000;
 const MAX_PAGE_SIZE = 50;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const MAX_TEXT = 10_000;
 const MAX_ITEMS = 500;
 const MAX_IMAGE_DATA_URL_LENGTH = 3_000_000;
 // Author photos are resized in the browser before upload; this is a generous ceiling.
@@ -78,7 +78,7 @@ export async function removeOwnedForm(input: { ownerId: string; formId: string }
   return deleteOwnedForm(input.ownerId, input.formId);
 }
 
-function validText(value: unknown, max = MAX_TEXT): value is string {
+function validText(value: unknown, max: number): value is string {
   return typeof value === 'string' && value.length <= max;
 }
 
@@ -113,9 +113,9 @@ function invalid(detail: string): never {
   throw new FormDefinitionError(detail);
 }
 
-function textField(value: unknown, field: string): string {
+function textField(value: unknown, field: string, max: number): string {
   if (typeof value !== 'string') invalid(STRUCTURE_ERROR);
-  if (value.length > MAX_TEXT) invalid(`${field} passou do limite de ${MAX_TEXT.toLocaleString('pt-BR')} caracteres.`);
+  if (value.length > max) invalid(`${field} passou do limite de ${max} caracteres (tem ${value.length}).`);
   return value;
 }
 
@@ -155,8 +155,8 @@ function uniqueIds<T extends { id: string }>(items: T[]): T[] {
 export function validateFormDefinition(value: unknown): FormDefinition {
   const input = record(value);
   if (input.schemaVersion !== 1) invalid(STRUCTURE_ERROR);
-  const title = textField(input.title, 'O nome do formulário');
-  const description = textField(input.description, 'A descrição do formulário');
+  const title = textField(input.title, 'O nome do formulário', TEXT_LIMITS.title);
+  const description = textField(input.description, 'A descrição do formulário', TEXT_LIMITS.description);
   const imageDataUrl = imageField(input.imageDataUrl, MAX_IMAGE_DATA_URL_LENGTH, 'A imagem do formulário');
 
   const authors = uniqueIds(listField(input.authors, 'autores').map((author, index) => {
@@ -164,8 +164,8 @@ export function validateFormDefinition(value: unknown): FormDefinition {
     const n = index + 1;
     return {
       id: idField(item.id),
-      name: authorName(textField(item.name, `O nome do autor ${n}`), n),
-      institution: textField(item.institution, `A instituição do autor ${n}`),
+      name: authorName(textField(item.name, `O nome do autor ${n}`, TEXT_LIMITS.authorName), n),
+      institution: textField(item.institution, `A instituição do autor ${n}`, TEXT_LIMITS.institution),
       imageDataUrl: imageField(item.imageDataUrl ?? null, MAX_AUTHOR_PHOTO_LENGTH, `A foto do autor ${n}`),
     };
   }));
@@ -181,9 +181,9 @@ export function validateFormDefinition(value: unknown): FormDefinition {
       const alt = record(alternative);
       const where = `da alternativa ${altIndex + 1} da pergunta ${n}`;
       if (!validFiniteOrNull(alt.score)) invalid(`A pontuação ${where} precisa ser um número.`);
-      return { id: idField(alt.id), label: textField(alt.label, `O texto ${where}`), score: alt.score };
+      return { id: idField(alt.id), label: textField(alt.label, `O texto ${where}`, TEXT_LIMITS.alternative), score: alt.score };
     }));
-    return { id: idField(item.id), prompt: textField(item.prompt, `O texto da pergunta ${n}`), type: item.type, alternatives } as FormDefinition['questions'][number];
+    return { id: idField(item.id), prompt: textField(item.prompt, `O texto da pergunta ${n}`, TEXT_LIMITS.question), type: item.type, alternatives } as FormDefinition['questions'][number];
   }));
 
   const resultBands = uniqueIds(listField(input.resultBands, 'faixas de resultado').map((band, index) => {
@@ -199,8 +199,8 @@ export function validateFormDefinition(value: unknown): FormDefinition {
     }
     return {
       id: idField(item.id), minScore, maxScore,
-      risk: textField(item.risk, `O resultado da faixa ${n}`),
-      description: textField(item.description, `A descrição da faixa ${n}`),
+      risk: textField(item.risk, `O resultado da faixa ${n}`, TEXT_LIMITS.risk),
+      description: textField(item.description, `A descrição da faixa ${n}`, TEXT_LIMITS.bandDescription),
     };
   }));
 
@@ -224,7 +224,8 @@ export async function createOwnedForm(ownerId: string, input?: unknown): Promise
 export async function duplicateOwnedForm(input: { ownerId: string; formId: string }): Promise<FormDetail> {
   if (!UUID_PATTERN.test(input.ownerId) || !UUID_PATTERN.test(input.formId)) throw new Error('INVALID_REQUEST');
   const source = await getOwnedForm(input.ownerId, input.formId);
-  const title = `${source.definition.title || source.title} (cópia)`;
+  const suffix = ' (cópia)';
+  const title = `${(source.definition.title || source.title).slice(0, TEXT_LIMITS.title - suffix.length).trimEnd()}${suffix}`;
   const definition = validateFormDefinition({ ...source.definition, title });
   return createForm(input.ownerId, `FORM-${randomUUID().replaceAll('-', '').toUpperCase()}`, definition, definitionState(definition));
 }
