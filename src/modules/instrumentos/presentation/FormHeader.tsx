@@ -11,7 +11,7 @@ import {
   getFormResultPath,
   type FormDefinition,
 } from "../domain/form-definitions";
-import { useAdminPreview } from "./AdminPreviewContext";
+import { useAdminPreview } from "@/shared/components/AdminPreviewContext";
 
 type FormHeaderProps = { form: FormDefinition };
 
@@ -38,7 +38,7 @@ export default function FormHeader({ form }: FormHeaderProps) {
         <Box component="a" href="/" aria-label="Página inicial" sx={{ display: "flex", alignItems: "center" }}>
           <Box component="img" src="/logo-avaliapen.svg" alt="Câncer de Pênis" sx={{ height: 60 }} />
         </Box>
-        <Box component="nav" aria-label={`Navegação do formulário ${form.title}`} sx={{ display: { xs: "none", md: "flex" }, gap: 10, px: 2 }}>
+        <Box component="nav" aria-label={`Navegação do formulário ${form.title}`} sx={{ display: { xs: "none", md: "flex" }, gap: { md: 4, lg: 10 }, px: 2 }}>
           {menuItems.map((item) => <Link key={item.label} href={item.href} underline="none" aria-current={item.active ? "page" : undefined} sx={{ color: "#fff", fontWeight: 500, position: "relative", pb: "6px", whiteSpace: "nowrap", "&::after": { content: '""', position: "absolute", left: 0, bottom: 0, width: "100%", height: "2px", bgcolor: "#fff", transform: item.active ? "scaleX(1)" : "scaleX(0)", transition: "transform 0.2s ease-in-out" }, "&:hover::after": { transform: "scaleX(1)" } }}>{item.label}</Link>)}
         </Box>
         <IconButton aria-label="Abrir menu" onClick={() => setOpen(true)} sx={{ display: { xs: "flex", md: "none" }, color: "#fff" }}>

@@ -575,7 +575,7 @@ export default function FormsHome({ user }: { user: AuthUser }) {
             <Box sx={{ alignItems: "center", borderBottom: `1px solid ${BORDER}`, display: "flex", minHeight: { xs: 96, sm: 124 }, px: { xs: 2, sm: 3.8 } }}>
               <OutlinedInput
                 fullWidth
-                inputProps={{ "aria-label": "Buscar formulários" }}
+                inputProps={{ "aria-label": "Buscar formulários", maxLength: 100 }}
                 onChange={(event) => handleSearch(event.target.value)}
                 placeholder="Buscar formulários..."
                 startAdornment={<InputAdornment position="start"><SearchRoundedIcon sx={{ color: "#525252", fontSize: 18 }} /></InputAdornment>}

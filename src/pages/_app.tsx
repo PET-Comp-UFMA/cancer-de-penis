@@ -2,6 +2,7 @@ import "@/shared/styles/globals.css";
 import type { AppProps } from "next/app";
 import { CssBaseline, ThemeProvider } from "@mui/material";
 import theme from "@/config/theme";
+import { AdminPreviewProvider } from "@/shared/components/AdminPreviewContext";
 import { ScoringSessionProvider } from "@/modules/instrumentos/presentation/ScoringSessionContext";
 import "@fontsource/montserrat/400.css";
 import "@fontsource/montserrat/500.css";
@@ -12,7 +13,9 @@ export default function App({ Component, pageProps }: AppProps) {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <ScoringSessionProvider>
-        <Component {...pageProps} />
+        <AdminPreviewProvider value={pageProps.adminPreview === true}>
+          <Component {...pageProps} />
+        </AdminPreviewProvider>
       </ScoringSessionProvider>
     </ThemeProvider>
   );

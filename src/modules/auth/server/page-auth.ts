@@ -23,3 +23,23 @@ export async function requireAdminPage(
     throw new Error('Área administrativa temporariamente indisponível.');
   }
 }
+
+// Lets a logged-in admin browsing the public site jump back to the panel.
+// Anonymous visitors carry no session cookie, so no lookup happens for them.
+export async function hasAdminSession(req: GetServerSidePropsContext['req']): Promise<boolean> {
+  const token = requestToken(req);
+  if (!token) return false;
+  try {
+    const session = await findSession(token);
+    return Boolean(session?.user.roles.some(role => role === 'admin' || role === 'responsavel'));
+  } catch {
+    return false;
+  }
+}
+
+export type AdminPreviewProps = { adminPreview: boolean };
+
+// getServerSideProps for public pages that only need to know about the admin link.
+export async function adminPreviewProps(context: GetServerSidePropsContext): Promise<GetServerSidePropsResult<AdminPreviewProps>> {
+  return { props: { adminPreview: await hasAdminSession(context.req) } };
+}

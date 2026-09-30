@@ -365,6 +365,12 @@ test('duplicar cria uma cópia editável e não publicada, somente para o dono',
   const otherBrowser = new Browser();
   assert.equal((await otherBrowser.login(other.username)).status, 200);
   assert.equal((await otherBrowser.request(`/api/formularios/${created.data.id}`, {}, 'POST')).status, 404);
+
+  const longTitle = 'T'.repeat(60);
+  const full = await browser.request('/api/formularios', { definition: { ...definition, title: longTitle } }, 'POST');
+  const fullCopy = await browser.request(`/api/formularios/${full.data.id}`, {}, 'POST');
+  assert.equal(fullCopy.status, 201);
+  assert.equal(fullCopy.data.definition.title, `${'T'.repeat(52)} (cópia)`);
 });
 
 test('RLS limita a conta de runtime ao contexto da transação e bloqueia gravações', async () => {

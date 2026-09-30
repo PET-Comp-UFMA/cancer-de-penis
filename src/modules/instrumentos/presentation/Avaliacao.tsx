@@ -136,7 +136,7 @@ export default function Avaliacao() {
               value={search}
               onChange={(event) => handleSearchChange(event.target.value)}
               placeholder="Buscar formulários..."
-              inputProps={{ "aria-label": "Buscar formulários" }}
+              inputProps={{ "aria-label": "Buscar formulários", maxLength: 100 }}
               startAdornment={<InputAdornment position="start"><SearchRoundedIcon /></InputAdornment>}
               sx={{ bgcolor: "#FFFFFF", borderRadius: "5px", height: 52, maxWidth: { xs: "100%", md: 392 }, fontSize: 14 }}
             />
