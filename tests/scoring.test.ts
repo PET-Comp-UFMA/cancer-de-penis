@@ -76,6 +76,24 @@ test('computeScore: sums selected alternative scores and resolves the band', () 
   assert.equal(result.percentage, 50);
 });
 
+test('computeScore: respects unequal weights and reverse-scored alternatives', () => {
+  const definition = form({ questions: [
+    { id: 'q1', prompt: 'Q1', answerType: 'single-choice', options: [
+      { id: 'yes', label: 'Sim', score: 0 }, { id: 'no', label: 'Não', score: 3 },
+    ] },
+    { id: 'q2', prompt: 'Q2', answerType: 'single-choice', options: [
+      { id: 'yes', label: 'Sim', score: 1 }, { id: 'no', label: 'Não', score: 0 },
+    ] },
+  ] });
+  const result = (first: string, second: string) => computeScore(definition, [
+    { questionId: 'q1', optionId: first }, { questionId: 'q2', optionId: second },
+  ]);
+  assert.equal(result('yes', 'no').percentage, 0);
+  assert.equal(result('yes', 'yes').percentage, 25);
+  assert.equal(result('no', 'no').percentage, 75);
+  assert.equal(result('no', 'yes').percentage, 100);
+});
+
 test('producibleScoreRange: sums min/max option score per question', () => {
   assert.deepEqual(producibleScoreRange(form({})), { min: 0, max: 20 });
 });

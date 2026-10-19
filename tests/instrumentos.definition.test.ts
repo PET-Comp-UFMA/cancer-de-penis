@@ -37,6 +37,27 @@ test('PENRISK is a 13-question Sim/Não instrument with standard bands', () => {
   assert.equal(intermediate.band.risk, 'Risco Médio');
 });
 
+test('PENRISK: all 8192 answer combinations follow the configured scores and bands', () => {
+  const { definition } = instrument('PENRISK');
+  const percentages = new Set<number>();
+  for (let mask = 0; mask < 2 ** definition.questions.length; mask += 1) {
+    let yesCount = 0;
+    const answers = definition.questions.map((question, index) => {
+      const yes = (mask & (1 << index)) !== 0;
+      if (yes) yesCount += 1;
+      return { questionId: question.id, optionId: `${question.id}-${yes ? 'sim' : 'nao'}` };
+    });
+    const result = computeScore(definition, answers);
+    const expected = Math.round(yesCount / 13 * 100);
+    assert.equal(result.percentage, expected);
+    assert.equal(result.band.risk, expected <= 33 ? 'Risco Baixo' : expected <= 66 ? 'Risco Médio' : 'Risco Alto');
+    percentages.add(result.percentage);
+  }
+  assert.equal(percentages.size, 14);
+  // 77% occurs only with ten affirmative answers under the current rule.
+  assert.equal(Math.round(10 / 13 * 100), 77);
+});
+
 test('engine rejects incomplete and invalid PENRISK answers', () => {
   const { definition } = instrument('PENRISK');
   assert.throws(() => computeScore(definition, []), /SCORE_INCOMPLETE_ANSWERS/);

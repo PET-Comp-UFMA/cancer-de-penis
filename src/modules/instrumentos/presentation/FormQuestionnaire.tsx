@@ -105,12 +105,12 @@ export default function FormQuestionnaire({ form }: FormQuestionnaireProps) {
         </RadioGroup>
       )}
     </FormControl>
-    <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, justifyContent: "space-between", alignItems: { xs: "stretch", sm: "center" }, gap: 2, mt: { xs: 4, md: 5 }, width: "100%" }}>
-      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, width: { xs: "100%", sm: "auto" } }}>
+    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 1, mt: { xs: 4, md: 5 }, width: "100%", "& .MuiButton-root": { px: { xs: 1.5, sm: 2.5 } } }}>
+      <Button href={getFormBasePath(form)} variant="outlined" sx={{ flexShrink: 0, minHeight: 39, borderColor: "#015D67", color: "#015D67", borderRadius: 2, px: 2.5, textTransform: "none", fontWeight: 700 }}>Cancelar</Button>
+      <Box sx={{ display: "flex", flexWrap: "wrap", justifyContent: "flex-end", gap: { xs: 1, sm: 1.5 }, minWidth: 0 }}>
         {currentIndex > 0 && <Button variant="outlined" onClick={() => setCurrentIndex((index) => index - 1)} sx={{ flex: { xs: "1 1 0", sm: "0 0 auto" }, minHeight: 39, minWidth: { xs: 0, sm: "auto" }, borderColor: "#015D67", color: "#015D67", borderRadius: 2, px: 2.5, textTransform: "none", fontWeight: 700 }}>Anterior</Button>}
         <Button variant="contained" onClick={goToNextQuestion} disabled={selectedAnswer === null} sx={{ flex: { xs: "1 1 0", sm: "0 0 auto" }, minHeight: 39, minWidth: { xs: 0, sm: "auto" }, bgcolor: "#015D67", borderRadius: 2, px: 2.5, textTransform: "none", fontWeight: 700, "&:hover": { bgcolor: "#004B53" }, "&.Mui-disabled": { bgcolor: "#C8D8D9", color: "#fff" } }}>{isLastQuestion ? "Finalizar" : "Próximo"}</Button>
       </Box>
-      <Button href={getFormBasePath(form)} variant="outlined" sx={{ width: { xs: "100%", sm: "auto" }, minHeight: 39, borderColor: "#015D67", color: "#015D67", borderRadius: 2, px: 2.5, textTransform: "none", fontWeight: 700 }}>Cancelar</Button>
     </Box>
   </Box>
   <Dialog onClose={leaveGuard.stay} open={leaveGuard.leaveRequested} slotProps={{ paper: { sx: { borderRadius: "12px", maxWidth: 480, p: { xs: 3, sm: 4 }, width: "100%" } } }}>
