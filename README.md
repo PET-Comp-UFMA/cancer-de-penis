@@ -57,6 +57,8 @@ Execute `npm run dev` e abra. O login fica em `/admin/login`. O responsável té
 
 Organize os commits e envie o código ao GitHub. Depois, vincule o repositório ao projeto correto da Vercel e configure as variáveis privadas do servidor: `DATABASE_URL`, `DATABASE_SSL`, `DATABASE_CA`, `AUTH_SECRET` e `APP_ORIGIN`.
 
+Configure também `CRON_SECRET` com um valor aleatório longo (por exemplo, gerado por `npm run auth:secret`). O `vercel.json` agenda uma chamada diária a `/api/keepalive`, que executa `SELECT 1` no banco para que o plano gratuito do Supabase não pause o projeto após 7 dias sem atividade. A Vercel envia esse segredo automaticamente; sem ele, a rota responde 401.
+
 Use a conexão da conta limitada do banco. Para funções serverless, o Supabase recomenda o Transaction pooler; copie os dados do painel. `APP_ORIGIN` deve ser o endereço HTTPS exato do ambiente. Não configure `DATABASE_ADMIN_URL` na Vercel nem use `NEXT_PUBLIC_` para segredos.
 
 Criar uma conta na Vercel não conecta automaticamente o site ao banco. A configuração e a verificação do login publicado ainda estão pendentes. Antes de substituir o site existente, confira qual repositório e versão correspondem à publicação: foram observadas diferenças entre ela e esta versão local.
