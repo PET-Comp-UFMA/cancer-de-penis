@@ -1,0 +1,3 @@
+import type { NextApiResponse } from 'next';
+import { authError } from '@/modules/auth/server/http';
+export function evaluationError(res: NextApiResponse, error: unknown) { const code = error instanceof Error ? error.message : ''; const status: Record<string, number> = { EVALUATION_INVALID_REQUEST: 400, SCORE_INCOMPLETE_ANSWERS: 400, SCORE_INVALID_ANSWER: 400, EVALUATION_REVISION_CONFLICT: 409, SCORE_NOT_AVAILABLE: 422, SCORE_NO_MATCHING_BAND: 422, SCORE_AMBIGUOUS_BAND: 422 }; if (status[code]) return res.status(status[code]).json({ error: 'Não foi possível processar a avaliação.', code }); return authError(res, error); }

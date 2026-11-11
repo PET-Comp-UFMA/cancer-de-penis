@@ -1,6 +1,6 @@
 import type { GetServerSidePropsContext, GetServerSidePropsResult, NextApiResponse } from 'next';
 import type { AuthRole, SessionUser } from '../domain/types';
-import { findSession } from '../infrastructure/repository';
+import { findSession } from './service';
 import { noStore, requestToken } from './cookies';
 
 type Props = { user: SessionUser; mustChangePassword: boolean };

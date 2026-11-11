@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import type { FormStatus } from "@/modules/formularios/domain/types";
-import { duplicateOwnedForm, readOwnedForm, removeOwnedForm, saveOwnedDefinition, setOwnedFormStatus } from "@/modules/formularios/application/service";
+import { duplicateOwnedForm, readOwnedForm, removeOwnedForm, saveOwnedDefinition, setOwnedFormStatus } from "@/modules/formularios/server/service";
 import { noStore } from "@/modules/auth/server/cookies";
 import { requireMutation, requireRole } from "@/modules/auth/server/guards";
 import { authError, methodNotAllowed } from "@/modules/auth/server/http";

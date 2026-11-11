@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { changePassword } from '@/modules/auth/application/service';
+import { changePassword } from '@/modules/auth/server/service';
 import { noStore, setCsrf, setSession } from '@/modules/auth/server/cookies';
 import { requireMutation, requireSession } from '@/modules/auth/server/guards';
 import { authError, methodNotAllowed } from '@/modules/auth/server/http';
@@ -12,10 +12,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     requireMutation(req);
     const context = await requireSession(req, { allowPasswordChange: true });
     const { currentPassword, newPassword } = req.body;
-    if (typeof currentPassword !== 'string' || currentPassword.length < 1 || currentPassword.length > 128
-      || typeof newPassword !== 'string' || newPassword.length < 12 || newPassword.length > 128
-      || currentPassword === newPassword) throw new Error('INVALID_PASSWORD');
-    const result = await changePassword({ sessionId: context.sessionId, userId: context.user.id }, currentPassword, newPassword);
+    const result = await changePassword(context, currentPassword, newPassword);
     if (!result) {
       await requireSession(req, { allowPasswordChange: true });
       throw new Error('INVALID_CURRENT_PASSWORD');

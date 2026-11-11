@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { login } from '@/modules/auth/application/service';
+import { login } from '@/modules/auth/server/service';
 import { noStore, setCsrf, setSession } from '@/modules/auth/server/cookies';
 import { requireMutation } from '@/modules/auth/server/guards';
 import { authError, methodNotAllowed } from '@/modules/auth/server/http';
@@ -12,10 +12,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     requireMutation(req);
     const { username, password } = req.body;
-    if (typeof username !== 'string' || !/^[a-zA-Z0-9._-]{3,64}$/.test(username.trim())
-      || typeof password !== 'string' || password.length < 1 || password.length > 128) throw new Error('INVALID_REQUEST');
     const result = await login(username, password, clientSource(req));
-    if (!result) throw new Error('INVALID_CREDENTIALS');
     setSession(res, result.token);
     const csrfToken = setCsrf(res, result.token);
     return res.status(200).json({

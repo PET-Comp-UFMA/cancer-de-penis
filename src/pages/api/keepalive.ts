@@ -1,6 +1,6 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getPool } from '@/modules/auth/infrastructure/db';
+import { getPool } from '@/shared/infrastructure/postgres/pool';
 import { methodNotAllowed } from '@/modules/auth/server/http';
 import { noStore } from '@/modules/auth/server/cookies';
 
