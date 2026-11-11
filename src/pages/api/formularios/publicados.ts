@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { listPublicPublishedForms } from '@/modules/formularios/application/service';
+import { listPublicPublishedForms } from '@/modules/formularios/server/service';
 import { authError, methodNotAllowed } from '@/modules/auth/server/http';
 import { noStore } from '@/modules/auth/server/cookies';
 

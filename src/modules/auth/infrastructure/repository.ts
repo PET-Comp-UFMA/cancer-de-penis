@@ -1,4 +1,4 @@
-import { getPool } from './db';
+import { getPool } from '@/shared/infrastructure/postgres/pool';
 import { hashPassword, hashToken, normalizeUsername, randomToken, verifyPassword } from './crypto';
 import type { AuthRole, AuthUser, SessionUser } from '../domain/types';
 import type { PoolClient } from 'pg';
@@ -81,6 +81,14 @@ export async function provisionUser(username: string, password: string, roles: A
   const result = await getPool().query(`insert into app_private.admin_users(username_display, username_normalized, roles, password_hash, temporary_credential_expires_at) values ($1, $2, $3, $4, now() + interval '24 hours') returning id, username_display as username, roles`, [display, normalizeUsername(display), roles, await hashPassword(password)]);
   const row = result.rows[0];
   return { id: row.id, username: row.username, roles: row.roles } as Pick<AuthUser, 'id' | 'username' | 'roles'>;
+}
+
+export async function findUserId(username: string): Promise<string | null> {
+  const result = await getPool().query<{ id: string }>(
+    'select id from app_private.admin_users where username_normalized = $1',
+    [normalizeUsername(username)],
+  );
+  return result.rows[0]?.id ?? null;
 }
 
 export async function resetPassword(id: string, password: string) {

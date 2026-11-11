@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { createOwnedForm, listOwnedForms } from '@/modules/formularios/application/service';
+import { createOwnedForm, listOwnedForms } from '@/modules/formularios/server/service';
 import { authError, methodNotAllowed } from '@/modules/auth/server/http';
 import { requireMutation, requireRole } from '@/modules/auth/server/guards';
 import { noStore } from '@/modules/auth/server/cookies';

@@ -6,10 +6,11 @@ import { Alert, Box, Button, Dialog, FormControl, FormControlLabel, Radio, Radio
 import { useLeaveGuard } from "@/shared/hooks/useLeaveGuard";
 import type { FormDefinition } from "../domain/form-definitions";
 import { getFormBasePath, getFormResultPath } from "../domain/form-definitions";
-import { computeScore, isScorable, type ScoreAnswer } from "../domain/scoring";
+import { evaluatePublishedForm } from "@/modules/avaliacoes/presentation/api";
+import { createEvaluationSubmissionController } from "@/modules/avaliacoes/presentation/submission";
 import { useScoringSession } from "./ScoringSessionContext";
 
-type FormQuestionnaireProps = { form: FormDefinition };
+type FormQuestionnaireProps = { form: FormDefinition; publishedRevision: number };
 type Answer = string | null;
 
 function QuestionProgress({ currentIndex, total }: { currentIndex: number; total: number }) {
@@ -24,14 +25,28 @@ function QuestionProgress({ currentIndex, total }: { currentIndex: number; total
 }
 const radioSx = { color: "#015D67", "&.Mui-checked": { color: "#015D67" } };
 
-export default function FormQuestionnaire({ form }: FormQuestionnaireProps) {
+export default function FormQuestionnaire({ form, publishedRevision }: FormQuestionnaireProps) {
   const router = useRouter();
   const { publishResult, publishError, clearResult } = useScoringSession();
   const [currentIndex, setCurrentIndex] = useState(0);
   const questionHeadingRef = useRef<HTMLHeadingElement>(null);
+  const submissionRef = useRef(createEvaluationSubmissionController());
   const [answers, setAnswers] = useState<Answer[]>(() => Array.from({ length: form.questions.length }, () => null));
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => { questionHeadingRef.current?.focus(); }, [currentIndex]);
+  useEffect(() => {
+    const submission = submissionRef.current;
+    submission.mount();
+    const onRouteChangeStart = () => {
+      if (submission.invalidate()) setIsSubmitting(false);
+    };
+    router.events.on("routeChangeStart", onRouteChangeStart);
+    return () => {
+      submission.unmount();
+      router.events.off("routeChangeStart", onRouteChangeStart);
+    };
+  }, [router.events]);
   useEffect(() => {
     clearResult(form.catalogKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -55,18 +70,28 @@ export default function FormQuestionnaire({ form }: FormQuestionnaireProps) {
   const options = question.options ?? [];
 
   function selectAnswer(value: string) {
+    if (isSubmitting) return;
     setAnswers((previous) => { const next = [...previous]; next[currentIndex] = value; return next; });
   }
 
-  function goToNextQuestion() {
-    if (selectedAnswer === null) return;
+  async function goToNextQuestion() {
+    if (selectedAnswer === null || isSubmitting) return;
     if (isLastQuestion) {
-      if (isScorable(form)) {
-        const scoreAnswers: ScoreAnswer[] = form.questions.map((q, index) => ({ questionId: q.id, optionId: (index === currentIndex ? selectedAnswer : answers[index]) as string }));
-        try { publishResult(form.catalogKey, computeScore(form, scoreAnswers)); }
-        catch (error) { publishError(form.catalogKey, error instanceof Error ? error.message : "SCORE_UNKNOWN_ERROR"); }
+      const requestId = submissionRef.current.begin();
+      setIsSubmitting(true);
+      const scoreAnswers = form.questions.map((q, index) => ({ questionId: q.id, optionId: (index === currentIndex ? selectedAnswer : answers[index]) as string }));
+      try {
+        const result = await evaluatePublishedForm({ catalogKey: form.catalogKey, publishedRevision, answers: scoreAnswers });
+        if (!submissionRef.current.canCommit(requestId)) return;
+        publishResult(form.catalogKey, result);
+      } catch (error) {
+        if (!submissionRef.current.canCommit(requestId)) return;
+        publishError(form.catalogKey, error instanceof Error ? error.message : "SCORE_UNKNOWN_ERROR");
+      } finally {
+        if (submissionRef.current.finish(requestId)) setIsSubmitting(false);
       }
-      router.push(getFormResultPath(form));
+      if (!submissionRef.current.canCommit(requestId)) return;
+      await router.push(getFormResultPath(form));
       return;
     }
     setCurrentIndex((index) => index + 1);
@@ -84,7 +109,7 @@ export default function FormQuestionnaire({ form }: FormQuestionnaireProps) {
           {options.map((option, index) => <FormControlLabel
             key={option.id}
             value={option.id}
-            control={<Radio inputProps={{ "aria-label": option.label }} sx={{ ...radioSx, position: "absolute", top: { xs: 18, sm: 20 }, left: "50%", transform: "translateX(-50%)", p: 0 }} />}
+            control={<Radio disabled={isSubmitting} inputProps={{ "aria-label": option.label }} sx={{ ...radioSx, position: "absolute", top: { xs: 18, sm: 20 }, left: "50%", transform: "translateX(-50%)", p: 0 }} />}
             label={<Box sx={{ position: "relative", minHeight: { xs: 92, sm: 116 }, pt: { xs: 3.5, sm: 4 }, width: "100%" }}>
               <Typography sx={{ color: "#1F6C75", fontSize: { xs: 13, sm: 16.9 }, fontWeight: 700, lineHeight: 1, position: "absolute", top: 0, left: 0, right: 0, textAlign: "center" }}>{`${index + 1}.`}</Typography>
               <Box sx={{ borderTop: "1px solid #1F6C75", height: 9, left: 0, position: "absolute", right: 0, top: { xs: 58, sm: 64 }, "&::before": { borderLeft: "1px solid #1F6C75", content: "\"\"", height: 8, left: "50%", position: "absolute", top: 0 }, "&::after": { borderLeft: "1px solid #1F6C75", content: "\"\"", height: 5, left: 0, position: "absolute", top: 0 } }} />
@@ -98,7 +123,7 @@ export default function FormQuestionnaire({ form }: FormQuestionnaireProps) {
           {options.map((option) => <FormControlLabel
             key={option.id}
             value={option.id}
-            control={<Radio inputProps={{ "aria-label": option.label }} sx={radioSx} />}
+            control={<Radio disabled={isSubmitting} inputProps={{ "aria-label": option.label }} sx={radioSx} />}
             label={option.label}
             sx={{ m: 0, minHeight: 32, "& .MuiFormControlLabel-label": { fontSize: 13 } }}
           />)}
@@ -108,8 +133,8 @@ export default function FormQuestionnaire({ form }: FormQuestionnaireProps) {
     <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 1, mt: { xs: 4, md: 5 }, width: "100%", "& .MuiButton-root": { px: { xs: 1.5, sm: 2.5 } } }}>
       <Button href={getFormBasePath(form)} variant="outlined" sx={{ flexShrink: 0, minHeight: 39, borderColor: "#015D67", color: "#015D67", borderRadius: 2, px: 2.5, textTransform: "none", fontWeight: 700 }}>Cancelar</Button>
       <Box sx={{ display: "flex", flexWrap: "wrap", justifyContent: "flex-end", gap: { xs: 1, sm: 1.5 }, minWidth: 0 }}>
-        {currentIndex > 0 && <Button variant="outlined" onClick={() => setCurrentIndex((index) => index - 1)} sx={{ flex: { xs: "1 1 0", sm: "0 0 auto" }, minHeight: 39, minWidth: { xs: 0, sm: "auto" }, borderColor: "#015D67", color: "#015D67", borderRadius: 2, px: 2.5, textTransform: "none", fontWeight: 700 }}>Anterior</Button>}
-        <Button variant="contained" onClick={goToNextQuestion} disabled={selectedAnswer === null} sx={{ flex: { xs: "1 1 0", sm: "0 0 auto" }, minHeight: 39, minWidth: { xs: 0, sm: "auto" }, bgcolor: "#015D67", borderRadius: 2, px: 2.5, textTransform: "none", fontWeight: 700, "&:hover": { bgcolor: "#004B53" }, "&.Mui-disabled": { bgcolor: "#C8D8D9", color: "#fff" } }}>{isLastQuestion ? "Finalizar" : "Próximo"}</Button>
+        {currentIndex > 0 && <Button variant="outlined" disabled={isSubmitting} onClick={() => setCurrentIndex((index) => index - 1)} sx={{ flex: { xs: "1 1 0", sm: "0 0 auto" }, minHeight: 39, minWidth: { xs: 0, sm: "auto" }, borderColor: "#015D67", color: "#015D67", borderRadius: 2, px: 2.5, textTransform: "none", fontWeight: 700 }}>Anterior</Button>}
+        <Button variant="contained" onClick={goToNextQuestion} disabled={selectedAnswer === null || isSubmitting} sx={{ flex: { xs: "1 1 0", sm: "0 0 auto" }, minHeight: 39, minWidth: { xs: 0, sm: "auto" }, bgcolor: "#015D67", borderRadius: 2, px: 2.5, textTransform: "none", fontWeight: 700, "&:hover": { bgcolor: "#004B53" }, "&.Mui-disabled": { bgcolor: "#C8D8D9", color: "#fff" } }}>{isLastQuestion ? "Finalizar" : "Próximo"}</Button>
       </Box>
     </Box>
   </Box>

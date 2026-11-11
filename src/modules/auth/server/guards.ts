@@ -1,6 +1,6 @@
 import type { NextApiRequest } from 'next';
 import { authEnv } from '../infrastructure/env';
-import { findSession } from '../infrastructure/repository';
+import { findSession } from './service';
 import { checkCsrf, requestToken } from './cookies';
 import type { AuthContext, AuthRole } from '../domain/types';
 export async function requireSession(req: Pick<NextApiRequest, 'cookies'>, options: { allowPasswordChange?: boolean } = {}): Promise<AuthContext> {

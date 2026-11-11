@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { revoke } from '@/modules/auth/application/service';
+import { revoke } from '@/modules/auth/server/service';
 import { clearSession, noStore, requestToken, setCsrf } from '@/modules/auth/server/cookies';
 import { requireMutation } from '@/modules/auth/server/guards';
 import { authError, methodNotAllowed } from '@/modules/auth/server/http';

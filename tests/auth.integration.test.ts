@@ -8,7 +8,7 @@ import path from 'node:path';
 import { Pool } from 'pg';
 import { freePort, startNext, startPostgres } from './helpers/postgres';
 import { hashToken } from '../src/modules/auth/infrastructure/crypto';
-import { provisionUser, resetPassword, disableUser } from '../src/modules/auth/application/service';
+import { provisionUser, resetPassword, disableUser } from '../src/modules/auth/server/service';
 import { closePool } from '../src/modules/auth/infrastructure/db';
 import { requireRole } from '../src/modules/auth/server/guards';
 import { clientSource } from '../src/modules/auth/server/client-source';

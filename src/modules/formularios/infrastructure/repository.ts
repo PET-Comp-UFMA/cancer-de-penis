@@ -1,5 +1,5 @@
 import type { PoolClient } from 'pg';
-import { getPool } from '@/modules/auth/infrastructure/db';
+import { getPool } from '@/shared/infrastructure/postgres/pool';
 import type {
   FormListItem,
   FormStatus,
@@ -11,6 +11,8 @@ import type {
   PublicFormDetail,
 } from '../domain/types';
 import { AUTO_CATALOG_KEY, slugCandidates } from '../domain/slug';
+import type { FormRepository } from '../application/ports/form-repository';
+import type { PublishedFormReader } from '../application/ports/published-form-reader';
 
 type FormRow = {
   id: string;
@@ -391,3 +393,17 @@ export async function deleteOwnedForm(ownerId: string, formId: string): Promise<
 }
 
 export type FormRepositoryClient = PoolClient;
+
+export const postgresFormRepository: FormRepository = {
+  listOwned: listForms,
+  create: createForm,
+  getOwned: getOwnedForm,
+  updateDefinition: updateOwnedDefinition,
+  updateStatus: updateFormStatus,
+  deleteOwned: deleteOwnedForm,
+};
+
+export const postgresPublishedFormReader: PublishedFormReader = {
+  list: listPublishedForms,
+  read: getPublishedForm,
+};

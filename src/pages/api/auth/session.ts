@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { findSession } from '@/modules/auth/infrastructure/repository';
+import { findSession } from '@/modules/auth/server/service';
 import { clearSession, csrfCookie, noStore, requestToken, setCsrf } from '@/modules/auth/server/cookies';
 import { authError, methodNotAllowed } from '@/modules/auth/server/http';
 

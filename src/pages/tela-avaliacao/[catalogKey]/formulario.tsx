@@ -6,7 +6,7 @@ import { getPublicFormPageProps, type PublicFormPageProps } from "@/modules/inst
 
 export const getServerSideProps = getPublicFormPageProps;
 
-export default function FormularioPage({ form }: PublicFormPageProps) {
+export default function FormularioPage({ form, publishedRevision }: PublicFormPageProps) {
   return <FormInstanceLayout form={form} pageTitle={`Questionário ${form.title}`}>
     <Box sx={{ width: "100%", maxWidth: 1216, mx: "auto", px: { xs: 2, md: 4 }, py: { xs: 5, md: 7 }, minHeight: 680 }}>
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.75, color: "#015D67", fontSize: { xs: 13, md: 20 }, fontWeight: 700, mb: { xs: 4, md: 6 } }}>
@@ -17,7 +17,7 @@ export default function FormularioPage({ form }: PublicFormPageProps) {
       <Typography component="h1" sx={{ color: "#1F6C75", fontSize: { xs: 30, md: 46 }, lineHeight: 1.15, fontWeight: 700, mb: { xs: 5, md: 7 }, textAlign: "center" }}>
         Questionário {form.title.toUpperCase()}
       </Typography>
-      <FormQuestionnaire form={form} />
+      <FormQuestionnaire form={form} publishedRevision={publishedRevision} />
     </Box>
   </FormInstanceLayout>;
 }

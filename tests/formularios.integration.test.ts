@@ -5,8 +5,8 @@ import { promisify } from 'node:util';
 import { randomBytes } from 'node:crypto';
 import { freePort, startNext, startPostgres } from './helpers/postgres';
 import { closePool } from '../src/modules/auth/infrastructure/db';
-import { provisionUser } from '../src/modules/auth/application/service';
-import { listOwnedForms, listPublicPublishedForms } from '../src/modules/formularios/application/service';
+import { provisionUser } from '../src/modules/auth/server/service';
+import { listOwnedForms, listPublicPublishedForms } from '../src/modules/formularios/server/service';
 
 const exec = promisify(execFile);
 const password = 'Forms-integration-password-1234';
@@ -169,6 +169,32 @@ test('biblioteca pública lista somente formulários publicados de qualquer cont
 
   const wildcard = await listPublicPublishedForms({ search: '%', page: 1, pageSize: 6 });
   assert.equal(wildcard.total, 0);
+});
+
+test('avaliação publicada usa snapshot, no-store e não aceita revisão ou respostas inválidas', async () => {
+  const owner = await account('forms.evaluation.owner');
+  const definition = {
+    schemaVersion: 1, title: 'Avaliação transitória', description: '', imageDataUrl: null, authors: [],
+    questions: [{ id: 'q1', prompt: 'Pergunta', type: 'two-options', alternatives: [
+      { id: 'no', label: 'Não', score: 0 }, { id: 'yes', label: 'Sim', score: 1 },
+    ] }],
+    resultBands: [{ id: 'b1', minScore: 0, maxScore: 100, risk: 'Resultado', description: '' }],
+  };
+  await db.pool.query(`
+    insert into app_private.admin_forms (owner_id, catalog_key, title, description, status, definition_state, definition, revision, published_definition, published_revision, published_at)
+    values ($1, 'EVAL_TEST', $2, '', 'published', 'complete', $3::jsonb, 3, $3::jsonb, 3, now())
+  `, [owner.id, definition.title, JSON.stringify(definition)]);
+  const browser = new Browser();
+  const valid = await browser.request('/api/avaliacoes/EVAL_TEST', { publishedRevision: 3, answers: [{ questionId: 'q1', optionId: 'yes', score: -999 }] });
+  assert.equal(valid.status, 200);
+  assert.equal(valid.data.score, 1);
+  assert.equal(valid.data.answers, undefined);
+  assert.equal(valid.headers.get('cache-control'), 'no-store');
+  assert.equal((await browser.request('/api/avaliacoes/EVAL_TEST', { publishedRevision: 2, answers: [{ questionId: 'q1', optionId: 'yes' }] })).status, 409);
+  assert.equal((await browser.request('/api/avaliacoes/EVAL_TEST', { publishedRevision: 3, answers: [{ questionId: 'q1', optionId: 'wrong' }] })).status, 400);
+  assert.equal((await browser.request('/api/avaliacoes/EVAL_TEST', { publishedRevision: 3, answers: [] })).status, 400);
+  await db.pool.query("update app_private.admin_forms set status = 'unpublished' where catalog_key = 'EVAL_TEST'");
+  assert.equal((await browser.request('/api/avaliacoes/EVAL_TEST', { publishedRevision: 3, answers: [{ questionId: 'q1', optionId: 'yes' }] })).status, 404);
 });
 
 test('admin pode publicar, retirar da publicação e excluir formulário não publicado', async () => {

@@ -2,9 +2,8 @@ import './admin-env';
 import { randomBytes } from 'node:crypto';
 import { createInterface } from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
-import { closePool, getPool } from '../src/modules/auth/infrastructure/db';
-import { normalizeUsername } from '../src/modules/auth/infrastructure/crypto';
-import { provisionUser, resetPassword, disableUser } from '../src/modules/auth/application/service';
+import { closePool } from '../src/shared/infrastructure/postgres/pool';
+import { findUserId, provisionUser, resetPassword, disableUser } from '../src/modules/auth/server/service';
 import type { AuthRole } from '../src/modules/auth/domain/types';
 
 async function main() {
@@ -28,17 +27,17 @@ async function main() {
       console.log('Entregue pessoalmente. Expira em 24 horas, aceita um login e exige troca imediata.');
       return;
     }
-    const result = await getPool().query<{id: string}>('SELECT id FROM app_private.admin_users WHERE username_normalized=$1', [normalizeUsername(username)]);
-    if (!result.rowCount) throw new Error('USER_NOT_FOUND');
+    const userId = await findUserId(username);
+    if (!userId) throw new Error('USER_NOT_FOUND');
     const confirmation = await prompt.question(`Confirma ${action === 'reset' ? 'redefinir a senha e encerrar as sessões' : 'desativar a conta e encerrar as sessões'} de ${username}? Digite SIM: `);
     if (confirmation !== 'SIM') { console.log('Operação cancelada.'); return; }
     if (action === 'reset') {
       const password = randomBytes(24).toString('base64url');
-      if (!await resetPassword(result.rows[0].id, password)) throw new Error('USER_NOT_FOUND');
+      if (!await resetPassword(userId, password)) throw new Error('USER_NOT_FOUND');
       console.log(`Senha temporária (exibida somente agora): ${password}`);
       console.log('Entregue pessoalmente. Expira em 24 horas. Redefinir não reativa contas desativadas.');
     } else {
-      if (!await disableUser(result.rows[0].id)) throw new Error('USER_NOT_FOUND');
+      if (!await disableUser(userId)) throw new Error('USER_NOT_FOUND');
       console.log('Conta desativada e sessões encerradas.');
     }
   } finally {
