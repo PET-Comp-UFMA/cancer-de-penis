@@ -30,7 +30,7 @@ Os requisitos utilizam as seguintes classificações:
 # 3. Autenticação e Controle de Acesso
 
 - **RF01 [CONFIRMADO]:** O sistema deve permitir que um administrador se
-  autentique utilizando e-mail e senha.
+  autentique utilizando nome de usuário e senha, sem e-mail.
 
 - **RF02 [CONFIRMADO]:** O sistema deve validar as credenciais fornecidas no
   processo de autenticação e impedir o acesso quando elas forem inválidas.
@@ -41,11 +41,13 @@ Os requisitos utilizam as seguintes classificações:
 - **RF04 [CONFIRMADO]:** O sistema deve permitir que um usuário autenticado
   encerre sua sessão.
 
-- **RF05 [PROPOSTA]:** O sistema deve permitir que um usuário recupere ou
-  redefina sua senha por meio de um processo seguro de recuperação de acesso.
+- **RF05 [CONFIRMADO]:** O responsável técnico deve poder redefinir a senha
+  pelo terminal, gerando uma senha temporária e encerrando as sessões anteriores.
+  Não há recuperação por e-mail. O primeiro acesso exige troca de senha.
 
-- **RF06 [PENDENTE]:** Deve ser definido como as contas administrativas serão
-  criadas: autocadastro, convite, criação manual ou outro mecanismo.
+- **RF06 [CONFIRMADO]:** As contas administrativas são criadas pelo responsável
+  técnico no terminal, com entrega das credenciais fora do sistema. Não há
+  autocadastro. A senha temporária expira em 24 horas e permite um único login.
 
 ---
 

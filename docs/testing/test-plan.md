@@ -1,19 +1,15 @@
-# Plano de Testes
+# Verificação do projeto
 
-> Documento em elaboração.
+Os testes de autenticação fazem parte do projeto e devem acompanhar seu código no Git. Os bancos temporários, capturas e relatórios gerados ficam ignorados.
 
-## Objetivo
+| Comando | O que verifica |
+| --- | --- |
+| `npm run typecheck` | Compatibilidade de tipos TypeScript |
+| `npm run lint` | Regras estáticas de qualidade |
+| `npm run test:auth` | Login, sessões, limites, permissões e operações de contas |
+| `npm run test:auth:browser` | Login, troca obrigatória de senha e logout no navegador |
+| `npm run build` | Preparação da aplicação para produção |
 
-Este documento será utilizado para definir a estratégia de testes da
-evolução do sistema.
+Os testes de autenticação usam um PostgreSQL temporário e isolado, criado com os executáveis locais. Não usam o banco real do Supabase nem o serviço de outro projeto. O ambiente atual usa PostgreSQL 18; em outra máquina, configure `PG_BIN` conforme `tests/helpers/postgres.ts`. O teste de navegador requer Microsoft Edge instalado.
 
-## Estado Atual
-
-Não foram encontrados testes automatizados, configuração de ferramentas de
-teste ou script de testes no repositório. Há um script de lint (`npm run lint`),
-configuração TypeScript (`npx tsc --noEmit`) e build de produção (`npm run build`).
-Essas verificações não constituem uma suíte de testes funcionais.
-
-## Estratégia Futura
-
-A definir em etapa posterior após estabilização da arquitetura.
+Execute somente as verificações relacionadas à alteração. Os testes não rodam automaticamente no build. Um teste local aprovado não comprova a configuração do ambiente publicado; após configurar a Vercel, verifique o fluxo de login nesse ambiente.

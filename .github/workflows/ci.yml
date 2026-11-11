@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - "feature/**"
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Scoring tests
+        run: npm run test:scoring
+
+      - name: Pure application tests
+        run: >-
+          npx tsx --test
+          tests/auth.application.test.ts
+          tests/avaliacoes.test.ts
+          tests/formularios.application.test.ts
+          tests/phase0.public-projection.characterization.test.ts
+          tests/postgres-pool.compatibility.test.ts
+
+      - name: Production build
+        run: npm run build -- --webpack
