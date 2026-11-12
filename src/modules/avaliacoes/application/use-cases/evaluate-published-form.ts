@@ -13,14 +13,28 @@ export function createEvaluatePublishedForm(reader: PublishedEvaluationSnapshotR
     || !(answer as Record<string, string>).questionId
     || !(answer as Record<string, string>).optionId
     || (answer as Record<string, string>).questionId.length > 200
-    || (answer as Record<string, string>).optionId.length > 200)) invalid();
+    || (answer as Record<string, string>).optionId.length > 200
+    || (Object.prototype.hasOwnProperty.call(answer, 'dimensionId') && typeof (answer as Record<string, unknown>).dimensionId !== 'string'))) invalid();
   const snapshot = await reader.read(command.catalogKey);
   if (snapshot.publishedRevision !== command.publishedRevision) throw new Error('EVALUATION_REVISION_CONFLICT');
-  if (answers.length !== snapshot.questions.length) throw new Error('SCORE_INCOMPLETE_ANSWERS');
-  const normalized = answers.map((answer) => ({ questionId: (answer as Record<string, string>).questionId, optionId: (answer as Record<string, string>).optionId }));
-  const questionIds = new Set(snapshot.questions.map((question) => question.id));
-  if (new Set(normalized.map((answer) => answer.questionId)).size !== normalized.length || normalized.some((answer) => !questionIds.has(answer.questionId))) throw new Error('SCORE_INVALID_ANSWER');
-  for (const answer of normalized) { const question = snapshot.questions.find((item) => item.id === answer.questionId); if (!question?.options.some((option) => option.id === answer.optionId)) throw new Error('SCORE_INVALID_ANSWER'); }
-  const result = computeScore(snapshot, normalized);
-  return { publishedRevision: snapshot.publishedRevision, score: result.score, percentage: result.percentage, band: result.band };
+  const scopes = [{ id: undefined, name: '', description: '', questions: snapshot.questions, resultBands: snapshot.resultBands }, ...(snapshot.dimensions ?? [])];
+  const normalized = answers.map((answer) => ({
+    questionId: (answer as Record<string, string>).questionId,
+    optionId: (answer as Record<string, string>).optionId,
+    dimensionId: (answer as Record<string, unknown>).dimensionId as string | undefined,
+  }));
+  const knownDimensionIds = new Set((snapshot.dimensions ?? []).map((dimension) => dimension.id));
+  if (normalized.some((answer) => answer.dimensionId !== undefined && !knownDimensionIds.has(answer.dimensionId))) throw new Error('SCORE_INVALID_ANSWER');
+  const results = scopes.map((scope) => {
+    const scopeAnswers = normalized.filter((answer) => answer.dimensionId === scope.id).map(({ questionId, optionId }) => ({ questionId, optionId }));
+    if (scopeAnswers.length === 0 && scope.questions.length === 0) return null;
+    if (scopeAnswers.length !== scope.questions.length) throw new Error('SCORE_INCOMPLETE_ANSWERS');
+    const questionIds = new Set(scope.questions.map((question) => question.id));
+    if (new Set(scopeAnswers.map((answer) => answer.questionId)).size !== scopeAnswers.length || scopeAnswers.some((answer) => !questionIds.has(answer.questionId))) throw new Error('SCORE_INVALID_ANSWER');
+    for (const answer of scopeAnswers) { const question = scope.questions.find((item) => item.id === answer.questionId); if (!question?.options.some((option) => option.id === answer.optionId)) throw new Error('SCORE_INVALID_ANSWER'); }
+    return computeScore(scope, scopeAnswers);
+  });
+  const general = results[0];
+  const dimensions = (snapshot.dimensions ?? []).map((dimension, index) => ({ id: dimension.id, name: dimension.name, description: dimension.description, ...(results[index + 1] as NonNullable<typeof results[number]>) }));
+  return { publishedRevision: snapshot.publishedRevision, general, dimensions, ...(general ? { score: general.score, percentage: general.percentage, band: general.band } : {}) };
 }; }

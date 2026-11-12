@@ -54,3 +54,49 @@ test('reativa após Strict Mode e navegação cancelada sem aceitar resposta tar
   assert.equal(submission.finish(secondRequest), true);
   assert.equal(submission.isSubmitting(), false);
 });
+
+test('avalia dimensões independentemente e não soma os escopos', async () => {
+  const dimensionSnapshot: PublishedEvaluationSnapshot = {
+    catalogKey: 'DIM', publishedRevision: 1, questions: [], resultBands: [],
+    dimensions: [
+      { id: 'd1', name: 'A', description: '', questions: [{ id: 'q1', options: [{ id: 'yes', score: 1 }, { id: 'no', score: 0 }] }], resultBands: [{ id: 'b1', minScore: 0, maxScore: 100, risk: 'A', description: '' }] },
+      { id: 'd2', name: 'B', description: '', questions: [{ id: 'q2', options: [{ id: 'yes', score: 10 }, { id: 'no', score: 0 }] }], resultBands: [{ id: 'b2', minScore: 0, maxScore: 100, risk: 'B', description: '' }] },
+    ],
+  };
+  const result = await createEvaluatePublishedForm({ read: async () => dimensionSnapshot })({ catalogKey: 'DIM', publishedRevision: 1, answers: [
+    { dimensionId: 'd1', questionId: 'q1', optionId: 'yes', score: 999 }, { dimensionId: 'd2', questionId: 'q2', optionId: 'no' },
+  ] });
+  assert.equal(result.general, null);
+  assert.deepEqual(result.dimensions.map((item) => [item.id, item.score]), [['d1', 1], ['d2', 0]]);
+  assert.equal('score' in result, false);
+});
+
+test('separa avaliação geral e dimensões por ID mesmo com pergunta repetida', async () => {
+  const scopedSnapshot: PublishedEvaluationSnapshot = {
+    catalogKey: 'SCOPES', publishedRevision: 1,
+    questions: [{ id: 'q1', options: [{ id: 'yes', score: 2 }, { id: 'no', score: 0 }] }],
+    resultBands: [{ id: 'general-band', minScore: 0, maxScore: 100, risk: 'Geral', description: '' }],
+    dimensions: [
+      { id: 'd1', name: 'A', description: '', questions: [{ id: 'q1', options: [{ id: 'yes', score: 10 }, { id: 'no', score: 0 }] }], resultBands: [{ id: 'd1-band', minScore: 0, maxScore: 100, risk: 'A', description: '' }] },
+      { id: 'd2', name: 'B', description: '', questions: [{ id: 'q1', options: [{ id: 'yes', score: 20 }, { id: 'no', score: 0 }] }], resultBands: [{ id: 'd2-band', minScore: 0, maxScore: 100, risk: 'B', description: '' }] },
+    ],
+  };
+  const result = await createEvaluatePublishedForm({ read: async () => scopedSnapshot })({ catalogKey: 'SCOPES', publishedRevision: 1, answers: [
+    { questionId: 'q1', optionId: 'yes' },
+    { dimensionId: 'd1', questionId: 'q1', optionId: 'yes' },
+    { dimensionId: 'd2', questionId: 'q1', optionId: 'no' },
+  ] });
+  assert.equal(result.general?.score, 2);
+  assert.deepEqual(result.dimensions.map(({ id, score }) => [id, score]), [['d1', 10], ['d2', 0]]);
+  assert.equal(result.score, 2);
+});
+
+test('rejeita resposta no escopo errado ou dimensão incompleta', async () => {
+  const dimensionSnapshot: PublishedEvaluationSnapshot = {
+    ...snapshot,
+    dimensions: [{ id: 'd1', name: 'A', description: '', questions: [{ id: 'q2', options: [{ id: 'yes', score: 1 }] }], resultBands: snapshot.resultBands }],
+  };
+  const evaluate = createEvaluatePublishedForm({ read: async () => dimensionSnapshot });
+  await assert.rejects(() => evaluate({ catalogKey: 'TESTE', publishedRevision: 3, answers: [{ questionId: 'q1', optionId: 'yes' }, { questionId: 'q1', optionId: 'yes', dimensionId: 'd1' }] }), /SCORE_INVALID_ANSWER/);
+  await assert.rejects(() => evaluate({ catalogKey: 'TESTE', publishedRevision: 3, answers: [{ questionId: 'q1', optionId: 'yes' }] }), /SCORE_INCOMPLETE_ANSWERS/);
+});
