@@ -3,12 +3,17 @@
 import { createContext, useCallback, useContext, useMemo, useRef, type ReactNode } from "react";
 import type { ScoreResult } from "../domain/scoring";
 
+export type ScoringSessionResult = Pick<ScoreResult, "score" | "band" | "percentage"> & {
+  dimensionId?: string;
+};
+
 type ScoringSession =
-  | { status: "result"; score: number; band: ScoreResult["band"]; percentage: number }
+  | { status: "result"; results: readonly ScoringSessionResult[] }
   | { status: "error"; code: string };
 
 type ScoringSessionApi = {
   publishResult: (catalogKey: string, result: ScoreResult) => void;
+  publishResults: (catalogKey: string, results: readonly ScoringSessionResult[]) => void;
   publishError: (catalogKey: string, code: string) => void;
   clearResult: (catalogKey: string) => void;
   takeResult: (catalogKey: string) => ScoringSession | null;
@@ -26,7 +31,11 @@ export function ScoringSessionProvider({ children }: { children: ReactNode }) {
   const sessions = useRef(new Map<string, ScoringSession>());
 
   const publishResult = useCallback((catalogKey: string, result: ScoreResult) => {
-    sessions.current.set(catalogKey, { status: "result", score: result.score, band: result.band, percentage: result.percentage });
+    sessions.current.set(catalogKey, { status: "result", results: [{ score: result.score, band: result.band, percentage: result.percentage }] });
+  }, []);
+
+  const publishResults = useCallback((catalogKey: string, results: readonly ScoringSessionResult[]) => {
+    sessions.current.set(catalogKey, { status: "result", results });
   }, []);
 
   const publishError = useCallback((catalogKey: string, code: string) => {
@@ -46,8 +55,8 @@ export function ScoringSessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const api = useMemo<ScoringSessionApi>(
-    () => ({ publishResult, publishError, clearResult, takeResult }),
-    [publishResult, publishError, clearResult, takeResult],
+    () => ({ publishResult, publishResults, publishError, clearResult, takeResult }),
+    [publishResult, publishResults, publishError, clearResult, takeResult],
   );
 
   return <ScoringSessionContext.Provider value={api}>{children}</ScoringSessionContext.Provider>;

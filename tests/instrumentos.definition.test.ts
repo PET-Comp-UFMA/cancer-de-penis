@@ -140,3 +140,37 @@ test('published definitions preserve the visual distinction between options and 
   assert.equal(publicDefinition.questions[0].answerType, 'single-choice');
   assert.equal(publicDefinition.questions[1].answerType, 'likert');
 });
+
+test('published definitions project optional dimensions without editorial fields', () => {
+  const definition = {
+    schemaVersion: 1 as const,
+    title: 'Dimensional',
+    description: '',
+    imageDataUrl: null,
+    authors: [],
+    questions: [],
+    resultBands: [],
+    dimensions: [{
+      id: 'dimension-1',
+      name: 'Bem-estar',
+      description: 'Descrição pública',
+      questions: [{
+        id: 'question-1',
+        prompt: 'Como você está?',
+        type: 'two-options' as const,
+        alternatives: [{ id: 'yes', label: 'Sim', score: 1 }],
+      }],
+      resultBands: [{ id: 'band-1', minScore: 0, maxScore: 100, risk: 'Baixo', description: 'Descrição' }],
+    }],
+  } as EditableFormDefinition & { dimensions: unknown[] };
+
+  const projected = toPublicDefinition({ catalogKey: 'DIMENSIONAL', title: definition.title, description: definition.description, definition });
+  assert.equal(projected.questionnaireStatus, 'ready');
+  assert.deepEqual(projected.dimensions, [{
+    id: 'dimension-1',
+    name: 'Bem-estar',
+    description: 'Descrição pública',
+    questions: [{ id: 'question-1', prompt: 'Como você está?', answerType: 'single-choice', options: [{ id: 'yes', label: 'Sim', score: 1 }] }],
+    resultBands: [{ id: 'band-1', minScore: 0, maxScore: 100, risk: 'Baixo', description: 'Descrição' }],
+  }]);
+});

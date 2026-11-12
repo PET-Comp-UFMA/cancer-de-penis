@@ -2,16 +2,74 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
-import { Alert, Box, Button, Dialog, FormControl, FormControlLabel, Radio, RadioGroup, Typography } from "@mui/material";
+import { Alert, Box, Button, Card, Dialog, FormControl, FormControlLabel, Radio, RadioGroup, Typography } from "@mui/material";
 import { useLeaveGuard } from "@/shared/hooks/useLeaveGuard";
 import type { FormDefinition } from "../domain/form-definitions";
 import { getFormBasePath, getFormResultPath } from "../domain/form-definitions";
 import { evaluatePublishedForm } from "@/modules/avaliacoes/presentation/api";
 import { createEvaluationSubmissionController } from "@/modules/avaliacoes/presentation/submission";
 import { useScoringSession } from "./ScoringSessionContext";
+import type { ScoringSessionResult } from "./ScoringSessionContext";
 
 type FormQuestionnaireProps = { form: FormDefinition; publishedRevision: number };
 type Answer = string | null;
+type QuestionStep = { question: FormDefinition["questions"][number]; dimensionId?: string; sectionName?: string; sectionDescription?: string };
+type QuestionScope = { id: string; label: string; description?: string; steps: QuestionStep[]; startIndex: number };
+
+function questionSteps(form: FormDefinition): QuestionStep[] {
+  const steps: QuestionStep[] = form.questions.map((question) => ({ question }));
+  for (const dimension of form.dimensions ?? []) {
+    dimension.questions.forEach((question, index) => steps.push({
+      question,
+      dimensionId: dimension.id,
+      sectionName: index === 0 ? dimension.name : undefined,
+      sectionDescription: index === 0 ? dimension.description : undefined,
+    }));
+  }
+  return steps;
+}
+
+function questionScopes(form: FormDefinition): QuestionScope[] {
+  const scopes: QuestionScope[] = [];
+  let startIndex = 0;
+  if (form.questions.length > 0) {
+    scopes.push({ id: "general", label: "Perguntas gerais", steps: form.questions.map((question) => ({ question })), startIndex });
+    startIndex += form.questions.length;
+  }
+  for (const dimension of form.dimensions ?? []) {
+    if (dimension.questions.length === 0) continue;
+    scopes.push({
+      id: dimension.id,
+      label: dimension.name,
+      description: dimension.description,
+      steps: dimension.questions.map((question, index) => ({
+        question,
+        dimensionId: dimension.id,
+        sectionName: index === 0 ? dimension.name : undefined,
+        sectionDescription: index === 0 ? dimension.description : undefined,
+      })),
+      startIndex,
+    });
+    startIndex += dimension.questions.length;
+  }
+  return scopes;
+}
+
+function sessionResults(value: unknown): ScoringSessionResult[] {
+  if (!value || typeof value !== "object") return [];
+  const payload = value as Record<string, unknown>;
+  if (Array.isArray(payload.results)) return payload.results as ScoringSessionResult[];
+  const dimensions = Array.isArray(payload.dimensions) ? payload.dimensions as Array<Record<string, unknown>> : [];
+  const general = payload.general && typeof payload.general === "object" ? [payload.general as ScoringSessionResult] : [];
+  if (general.length > 0 || dimensions.length > 0) {
+    return [...general, ...dimensions.map((result) => ({
+      ...result,
+      dimensionId: (result.dimensionId ?? result.id) as string,
+    }))] as ScoringSessionResult[];
+  }
+  if (typeof payload.score === "number" && typeof payload.percentage === "number" && payload.band) return [payload as unknown as ScoringSessionResult];
+  return [];
+}
 
 function QuestionProgress({ currentIndex, total }: { currentIndex: number; total: number }) {
   return <Box component="ol" aria-label={`Pergunta ${currentIndex + 1} de ${total}`} sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", maxWidth: 213, m: 0, p: 0, listStyle: "none" }}>
@@ -23,15 +81,51 @@ function QuestionProgress({ currentIndex, total }: { currentIndex: number; total
     })}
   </Box>;
 }
+
+function ScopeProgress({ scopes, activeScopeId }: { scopes: QuestionScope[]; activeScopeId: string }) {
+  return <Box role="list" aria-label="Etapas do questionário" sx={{ display: "flex", gap: { xs: 1, sm: 1.5 }, width: "100%", overflowX: "auto", pb: 0.5 }}>
+    {scopes.map((scope, index) => {
+      const isActive = scope.id === activeScopeId;
+      return <Card
+        key={scope.id}
+        role="listitem"
+        aria-current={isActive ? "step" : undefined}
+        aria-label={`${index + 1}. ${scope.label}`}
+        variant="outlined"
+        sx={{
+          flex: "1 0 148px",
+          minHeight: { xs: 64, sm: 72 },
+          borderRadius: 2,
+          borderColor: isActive ? "#015D67" : "#D9E1E3",
+          bgcolor: isActive ? "#E7F0F0" : "#fff",
+          color: isActive ? "#015D67" : "#667085",
+          boxShadow: "none",
+          display: "flex",
+          alignItems: "center",
+          px: { xs: 1.5, sm: 2 },
+        }}
+      >
+        <Typography sx={{ fontSize: 13, fontWeight: 700, lineHeight: 1.2 }}>{index + 1}</Typography>
+        <Box sx={{ ml: 1.25, minWidth: 0 }}>
+          <Typography sx={{ fontSize: { xs: 13, sm: 14 }, fontWeight: 700, lineHeight: 1.25, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{scope.label}</Typography>
+          <Typography sx={{ fontSize: 12, lineHeight: 1.25, mt: 0.25, color: "inherit", opacity: 0.82 }}>{scope.steps.length} {scope.steps.length === 1 ? "pergunta" : "perguntas"}</Typography>
+        </Box>
+      </Card>;
+    })}
+  </Box>;
+}
 const radioSx = { color: "#015D67", "&.Mui-checked": { color: "#015D67" } };
 
 export default function FormQuestionnaire({ form, publishedRevision }: FormQuestionnaireProps) {
   const router = useRouter();
-  const { publishResult, publishError, clearResult } = useScoringSession();
+  const { publishResults, publishError, clearResult } = useScoringSession();
+  const steps = questionSteps(form);
+  const scopes = questionScopes(form);
+  const hasDimensions = (form.dimensions ?? []).some((dimension) => dimension.questions.length > 0);
   const [currentIndex, setCurrentIndex] = useState(0);
   const questionHeadingRef = useRef<HTMLHeadingElement>(null);
   const submissionRef = useRef(createEvaluationSubmissionController());
-  const [answers, setAnswers] = useState<Answer[]>(() => Array.from({ length: form.questions.length }, () => null));
+  const [answers, setAnswers] = useState<Answer[]>(() => Array.from({ length: steps.length }, () => null));
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => { questionHeadingRef.current?.focus(); }, [currentIndex]);
@@ -56,16 +150,19 @@ export default function FormQuestionnaire({ form, publishedRevision }: FormQuest
     "Sair do questionário? Suas respostas não são salvas e você vai precisar responder tudo de novo.",
   );
 
-  if (form.questionnaireStatus !== "ready" || form.questions.length === 0) {
+  if (form.questionnaireStatus !== "ready" || steps.length === 0) {
     return <Box sx={{ width: "100%", maxWidth: 640, mx: "auto", py: 4 }}>
       <Alert severity="info">Este formulário ainda não possui um questionário publicado.</Alert>
       <Button href={getFormBasePath(form)} variant="outlined" sx={{ mt: 3, borderColor: "#015D67", color: "#015D67", textTransform: "none" }}>Voltar para o início</Button>
     </Box>;
   }
 
-  const question = form.questions[currentIndex];
+  const step = steps[currentIndex];
+  const activeScope = scopes.find((scope) => currentIndex >= scope.startIndex && currentIndex < scope.startIndex + scope.steps.length) ?? scopes[0]!;
+  const scopedQuestionIndex = currentIndex - activeScope.startIndex;
+  const question = step.question;
   const selectedAnswer = answers[currentIndex];
-  const isLastQuestion = currentIndex === form.questions.length - 1;
+  const isLastQuestion = currentIndex === steps.length - 1;
   const isLikert = question.answerType === "likert";
   const options = question.options ?? [];
 
@@ -79,11 +176,15 @@ export default function FormQuestionnaire({ form, publishedRevision }: FormQuest
     if (isLastQuestion) {
       const requestId = submissionRef.current.begin();
       setIsSubmitting(true);
-      const scoreAnswers = form.questions.map((q, index) => ({ questionId: q.id, optionId: (index === currentIndex ? selectedAnswer : answers[index]) as string }));
+      const scoreAnswers = steps.map((item, index) => ({
+        questionId: item.question.id,
+        optionId: (index === currentIndex ? selectedAnswer : answers[index]) as string,
+        ...(item.dimensionId ? { dimensionId: item.dimensionId } : {}),
+      }));
       try {
-        const result = await evaluatePublishedForm({ catalogKey: form.catalogKey, publishedRevision, answers: scoreAnswers });
+        const result = await evaluatePublishedForm({ catalogKey: form.catalogKey, publishedRevision, answers: scoreAnswers } as Parameters<typeof evaluatePublishedForm>[0]);
         if (!submissionRef.current.canCommit(requestId)) return;
-        publishResult(form.catalogKey, result);
+        publishResults(form.catalogKey, sessionResults(result));
       } catch (error) {
         if (!submissionRef.current.canCommit(requestId)) return;
         publishError(form.catalogKey, error instanceof Error ? error.message : "SCORE_UNKNOWN_ERROR");
@@ -98,9 +199,22 @@ export default function FormQuestionnaire({ form, publishedRevision }: FormQuest
   }
 
   return <><Box sx={{ width: "100%", maxWidth: 824, mx: "auto" }}>
-    <QuestionProgress currentIndex={currentIndex} total={form.questions.length} />
+    {hasDimensions && <>
+      <ScopeProgress scopes={scopes} activeScopeId={activeScope.id} />
+      <Box sx={{ mt: { xs: 2, md: 2.5 } }}>
+        <QuestionProgress currentIndex={scopedQuestionIndex} total={activeScope.steps.length} />
+      </Box>
+    </>}
+    {!hasDimensions && <QuestionProgress currentIndex={currentIndex} total={steps.length} />}
     <Box sx={{ mt: { xs: 4, md: 5 } }}>
-      <Typography component="p" sx={{ color: "#1F6C75", fontSize: 24, lineHeight: 1.1, fontWeight: 700, mb: 1.25 }}>{currentIndex + 1}.</Typography>
+      {hasDimensions ? <Box sx={{ mb: 3 }}>
+        <Typography component="h2" sx={{ color: "#015D67", fontSize: { xs: 24, md: 30 }, fontWeight: 700 }}>{activeScope.label}</Typography>
+        {activeScope.description && <Typography sx={{ color: "#425466", mt: 0.75 }}>{activeScope.description}</Typography>}
+      </Box> : step.sectionName && <Box sx={{ mb: 3 }}>
+        <Typography component="h2" sx={{ color: "#015D67", fontSize: { xs: 24, md: 30 }, fontWeight: 700 }}>{step.sectionName}</Typography>
+        {step.sectionDescription && <Typography sx={{ color: "#425466", mt: 0.75 }}>{step.sectionDescription}</Typography>}
+      </Box>}
+      <Typography component="p" sx={{ color: "#1F6C75", fontSize: 24, lineHeight: 1.1, fontWeight: 700, mb: 1.25 }}>{(hasDimensions ? scopedQuestionIndex : currentIndex) + 1}.</Typography>
       <Typography component="h2" ref={questionHeadingRef} tabIndex={-1} aria-live="polite" sx={{ color: "#015D67", fontSize: { xs: 20, md: 24 }, lineHeight: 1.35, fontWeight: 400 }}>{question.prompt}</Typography>
     </Box>
     <FormControl fullWidth sx={{ mt: { xs: 3, md: 4 } }}>

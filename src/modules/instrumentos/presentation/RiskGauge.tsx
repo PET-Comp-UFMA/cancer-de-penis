@@ -19,9 +19,10 @@ const ARC_PATH = `M ${CENTER_X - RADIUS} ${CENTER_Y} A ${RADIUS} ${RADIUS} 0 0 1
 type RiskGaugeProps = {
   percentage: number;
   caption?: string;
+  ariaLabel?: string;
 };
 
-export default function RiskGauge({ percentage, caption = "Porcentagem de Risco" }: RiskGaugeProps) {
+export default function RiskGauge({ percentage, caption = "Porcentagem de Risco", ariaLabel }: RiskGaugeProps) {
   const clamped = Math.max(0, Math.min(100, percentage));
   const filledLength = (clamped / 100) * ARC_LENGTH;
 
@@ -30,7 +31,7 @@ export default function RiskGauge({ percentage, caption = "Porcentagem de Risco"
       <Box sx={{ position: "relative", width: WIDTH + 40, height: HEIGHT + 8 }}>
         <svg
           role="img"
-          aria-label={`${clamped}% de risco`}
+          aria-label={ariaLabel ?? `${clamped}% de risco`}
           viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
           width="100%"
           height="100%"

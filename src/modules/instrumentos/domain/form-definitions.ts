@@ -16,6 +16,14 @@ export type FormResultBand = {
   description: string;
 };
 
+export type FormDimension = {
+  id: string;
+  name: string;
+  description: string;
+  questions: readonly FormQuestion[];
+  resultBands: readonly FormResultBand[];
+};
+
 export type FormDefinition = {
   slug: string;
   catalogKey: string;
@@ -25,6 +33,7 @@ export type FormDefinition = {
   authors: readonly Author[];
   questions: readonly FormQuestion[];
   resultBands: readonly FormResultBand[];
+  dimensions?: readonly FormDimension[];
   questionnaireStatus: "ready" | "pending";
 };
 
@@ -55,6 +64,36 @@ export function toPublicDefinition(value: {
   definition: EditableFormDefinition;
 }): FormDefinition {
   const { definition } = value;
+  type EditableDimension = {
+    id: string;
+    name: string;
+    description: string;
+    questions: EditableFormDefinition["questions"];
+    resultBands: EditableFormDefinition["resultBands"];
+  };
+  const dimensions = ((definition as EditableFormDefinition & { dimensions?: EditableDimension[] }).dimensions ?? []).map((dimension) => ({
+    id: dimension.id,
+    name: dimension.name,
+    description: dimension.description,
+    questions: dimension.questions.map((question) => ({
+      id: question.id,
+      prompt: question.prompt,
+      answerType: (question.type === "likert" ? "likert" : "single-choice") as FormQuestion["answerType"],
+      options: question.alternatives.map((alternative) => ({
+        id: alternative.id,
+        label: alternative.label,
+        score: alternative.score,
+      })),
+    })),
+    resultBands: dimension.resultBands.map((band) => ({
+      id: band.id,
+      minScore: band.minScore,
+      maxScore: band.maxScore,
+      risk: band.risk,
+      description: band.description,
+    })),
+  }));
+  const hasQuestions = definition.questions.length > 0 || dimensions.some((dimension) => dimension.questions.length > 0);
   return {
     slug: normalizeFormSlug(value.catalogKey),
     catalogKey: value.catalogKey,
@@ -83,6 +122,7 @@ export function toPublicDefinition(value: {
       risk: band.risk,
       description: band.description,
     })),
-    questionnaireStatus: definition.questions.length > 0 ? "ready" : "pending",
+    ...(dimensions.length > 0 ? { dimensions } : {}),
+    questionnaireStatus: hasQuestions ? "ready" : "pending",
   };
 }
