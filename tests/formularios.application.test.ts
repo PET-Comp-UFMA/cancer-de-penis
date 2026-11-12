@@ -140,3 +140,14 @@ test('mapeador público restringe campos extras também na definição aninhada'
   assert.deepEqual(Object.keys(mapped.definition.questions[0].alternatives[0]), ['id', 'label', 'score']);
   assert.deepEqual(Object.keys(mapped.definition.resultBands[0]), ['id', 'minScore', 'maxScore', 'risk', 'description']);
 });
+
+test('mapeador inclui dimensões quando presentes e omite a propriedade quando vazias', () => {
+  const withDimension = toPublicFormDetail({ ...publicDetail, definition: {
+    ...definition,
+    dimensions: [{ id: 'dim-1', name: 'Sintomas', description: 'Descrição', questions: [], resultBands: [] }],
+  }});
+  assert.deepEqual(Object.keys(withDimension.definition), ['schemaVersion', 'title', 'description', 'imageDataUrl', 'authors', 'questions', 'resultBands', 'dimensions']);
+  assert.equal(withDimension.definition.dimensions?.[0].id, 'dim-1');
+  const withoutDimension = toPublicFormDetail({ ...publicDetail, definition: { ...definition, dimensions: [] } });
+  assert.equal('dimensions' in withoutDimension.definition, false);
+});

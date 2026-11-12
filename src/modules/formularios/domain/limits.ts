@@ -9,4 +9,6 @@ export const TEXT_LIMITS = {
   alternative: 120,
   risk: 40,
   bandDescription: 300,
+  dimensionName: 60,
+  dimensionDescription: 500,
 } as const;

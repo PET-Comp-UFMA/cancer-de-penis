@@ -24,6 +24,7 @@ export function resultBandsComplete(definition: FormDefinition): boolean {
   if (bands.length === 0 || !bands.every((band) => band.risk.trim().length > 0
     && band.minScore !== null && band.maxScore !== null
     && Number.isFinite(band.minScore) && Number.isFinite(band.maxScore)
+    && Number.isInteger(band.minScore) && Number.isInteger(band.maxScore)
     && band.minScore <= band.maxScore)) return false;
   const sorted = [...bands].sort((a, b) => (a.minScore as number) - (b.minScore as number));
   for (let index = 0; index < sorted.length - 1; index += 1) {
@@ -32,8 +33,20 @@ export function resultBandsComplete(definition: FormDefinition): boolean {
   return sorted[0].minScore === 0 && sorted[sorted.length - 1].maxScore === 100;
 }
 
+function scopeComplete(questions: FormDefinition['questions'], resultBands: FormDefinition['resultBands']): boolean {
+  return questions.length > 0
+    && questionsComplete({ questions, resultBands } as FormDefinition)
+    && resultBandsComplete({ questions, resultBands } as FormDefinition);
+}
+
 export function definitionState(definition: FormDefinition): 'incomplete' | 'complete' {
-  return definition.title.trim().length > 0 && questionsComplete(definition) && resultBandsComplete(definition)
+  const dimensions = definition.dimensions ?? [];
+  const generalIsEmpty = definition.questions.length === 0 && definition.resultBands.length === 0;
+  const generalComplete = generalIsEmpty || scopeComplete(definition.questions, definition.resultBands);
+  const dimensionsComplete = dimensions.length > 0 && dimensions.every((dimension) => dimension.name.trim().length > 0
+    && scopeComplete(dimension.questions, dimension.resultBands));
+  const hasScorableScope = dimensions.length > 0 ? dimensionsComplete : scopeComplete(definition.questions, definition.resultBands);
+  return definition.title.trim().length > 0 && generalComplete && hasScorableScope
     ? 'complete'
     : 'incomplete';
 }

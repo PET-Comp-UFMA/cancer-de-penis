@@ -75,7 +75,7 @@ export function toPublicFormList(result: ListPublishedFormsResult): PublicFormLi
 }
 
 function toFormDefinition(definition: FormDefinition): FormDefinitionResponse {
-  return {
+  const mapped = {
     schemaVersion: definition.schemaVersion,
     title: definition.title,
     description: definition.description,
@@ -107,5 +107,13 @@ function toFormDefinition(definition: FormDefinition): FormDefinitionResponse {
       risk: band.risk,
       description: band.description,
     })),
-  };
+  } as FormDefinitionResponse;
+  if (definition.dimensions?.length) mapped.dimensions = definition.dimensions.map((dimension) => ({
+    id: dimension.id,
+    name: dimension.name,
+    description: dimension.description,
+    questions: dimension.questions.map((question) => ({ id: question.id, prompt: question.prompt, type: question.type, alternatives: question.alternatives.map((alternative) => ({ id: alternative.id, label: alternative.label, score: alternative.score })) })),
+    resultBands: dimension.resultBands.map((band) => ({ id: band.id, minScore: band.minScore, maxScore: band.maxScore, risk: band.risk, description: band.description })),
+  }));
+  return mapped;
 }

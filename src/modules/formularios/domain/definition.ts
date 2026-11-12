@@ -117,6 +117,7 @@ export function validateFormDefinition(value: unknown): FormDefinition {
     if (!validFiniteOrNull(minScore) || !validFiniteOrNull(maxScore)) invalid(`A faixa ${n} precisa ter números em "De" e "Até".`);
     for (const [bound, label] of [[minScore, 'De'], [maxScore, 'Até']] as const) {
       if (bound !== null && (bound < 0 || bound > 100)) invalid(`Na faixa ${n}, "${label}" (${bound}) precisa estar entre 0 e 100%.`);
+      if (bound !== null && !Number.isInteger(bound)) invalid(`Na faixa ${n}, "${label}" (${bound}) precisa ser um percentual inteiro entre 0 e 100%.`);
     }
     if (minScore !== null && maxScore !== null && minScore > maxScore) {
       invalid(`Na faixa ${n}, "De" (${minScore}%) está maior que "Até" (${maxScore}%).`);
@@ -128,7 +129,43 @@ export function validateFormDefinition(value: unknown): FormDefinition {
     };
   }));
 
-  return { schemaVersion: 1, title, description, imageDataUrl, authors, questions, resultBands };
+  const rawDimensions = input.dimensions;
+  let dimensions: FormDefinition['dimensions'];
+  if (rawDimensions !== undefined) {
+    const parsed = uniqueIds(listField(rawDimensions, 'dimensões').map((dimension, index) => {
+      const item = record(dimension);
+      const n = index + 1;
+      const dimensionName = textField(item.name, `O nome da dimensão ${n}`, TEXT_LIMITS.dimensionName);
+      const dimensionDescription = textField(item.description, `A descrição da dimensão ${n}`, TEXT_LIMITS.dimensionDescription);
+      const dimensionQuestions = uniqueIds(listField(item.questions, `perguntas da dimensão ${n}`).map((question, questionIndex) => {
+        const q = record(question);
+        const qn = questionIndex + 1;
+        if (q.type !== 'two-options' && q.type !== 'likert') invalid(STRUCTURE_ERROR);
+        const minimum = q.type === 'two-options' ? 2 : 3;
+        const alternatives = uniqueIds(listField(q.alternatives, `alternativas na pergunta ${qn} da dimensão ${n}`).map((alternative, altIndex) => {
+          const alt = record(alternative);
+          if (!validFiniteOrNull(alt.score)) invalid(`A pontuação da alternativa ${altIndex + 1} da pergunta ${qn} da dimensão ${n} precisa ser um número.`);
+          return { id: idField(alt.id), label: textField(alt.label, `O texto da alternativa ${altIndex + 1} da pergunta ${qn} da dimensão ${n}`, TEXT_LIMITS.alternative), score: alt.score };
+        }));
+        if (alternatives.length < minimum) invalid(`A pergunta ${qn} da dimensão ${n} precisa de pelo menos ${minimum} alternativas.`);
+        return { id: idField(q.id), prompt: textField(q.prompt, `O texto da pergunta ${qn} da dimensão ${n}`, TEXT_LIMITS.question), type: q.type, alternatives } as FormDefinition['questions'][number];
+      }));
+      const dimensionBands = uniqueIds(listField(item.resultBands, `faixas da dimensão ${n}`).map((band, bandIndex) => {
+        const b = record(band);
+        const bn = bandIndex + 1;
+        const { minScore, maxScore } = b;
+        if (!validFiniteOrNull(minScore) || !validFiniteOrNull(maxScore)) invalid(`A faixa ${bn} da dimensão ${n} precisa ter números em "De" e "Até".`);
+        if ((minScore !== null && (minScore < 0 || minScore > 100)) || (maxScore !== null && (maxScore < 0 || maxScore > 100))) invalid(`Na faixa ${bn} da dimensão ${n}, os limites precisam estar entre 0 e 100%.`);
+        if ((minScore !== null && !Number.isInteger(minScore)) || (maxScore !== null && !Number.isInteger(maxScore))) invalid(`Na faixa ${bn} da dimensão ${n}, os limites precisam ser percentuais inteiros entre 0 e 100%.`);
+        if (minScore !== null && maxScore !== null && minScore > maxScore) invalid(`Na faixa ${bn} da dimensão ${n}, "De" está maior que "Até".`);
+        return { id: idField(b.id), minScore, maxScore, risk: textField(b.risk, `O resultado da faixa ${bn} da dimensão ${n}`, TEXT_LIMITS.risk), description: textField(b.description, `A descrição da faixa ${bn} da dimensão ${n}`, TEXT_LIMITS.bandDescription) };
+      }));
+      return { id: idField(item.id), name: dimensionName, description: dimensionDescription, questions: dimensionQuestions, resultBands: dimensionBands };
+    }));
+    dimensions = parsed.length > 0 ? parsed : undefined;
+  }
+
+  return { schemaVersion: 1, title, description, imageDataUrl, authors, questions, resultBands, ...(dimensions ? { dimensions } : {}) };
 }
 
 export { definitionState };

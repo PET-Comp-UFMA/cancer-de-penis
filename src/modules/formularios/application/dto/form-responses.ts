@@ -13,6 +13,11 @@ export type FormDefinitionResponse = {
     alternatives: Array<{ id: string; label: string; score: number | null }>;
   }>;
   resultBands: Array<{ id: string; minScore: number | null; maxScore: number | null; risk: string; description: string }>;
+  dimensions?: Array<{
+    id: string; name: string; description: string;
+    questions: FormDefinitionResponse['questions'];
+    resultBands: FormDefinitionResponse['resultBands'];
+  }>;
 };
 
 export type AdminFormListItemResponse = {

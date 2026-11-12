@@ -44,6 +44,43 @@ test("só marca a definição como completa quando perguntas e faixas estão pre
   assert.equal(definitionState(normalized), "incomplete");
 });
 
+test("rejeita limites percentuais decimais e não os considera publicáveis", () => {
+  const decimal = completeDefinition();
+  decimal.resultBands[0].maxScore = 33.5;
+  decimal.resultBands.push({ id: "band-2", minScore: 34, maxScore: 100, risk: "Resultado 2", description: "" });
+  assert.throws(() => validateFormDefinition(decimal), /FORM_INVALID_DEFINITION/);
+
+  const structurallyValidButDecimal = completeDefinition();
+  structurallyValidButDecimal.resultBands[0].maxScore = 33.5;
+  structurallyValidButDecimal.resultBands.push({ id: "band-2", minScore: 34, maxScore: 100, risk: "Resultado 2", description: "" });
+  assert.equal(definitionState(structurallyValidButDecimal), "incomplete");
+
+  const dimensionDecimal = completeDefinition();
+  dimensionDecimal.questions = [];
+  dimensionDecimal.resultBands = [];
+  dimensionDecimal.dimensions = [{ id: "dim-1", name: "Sintomas", description: "", questions: [{
+    id: "dq1", prompt: "Pergunta", type: "two-options",
+    alternatives: [{ id: "a", label: "Não", score: 0 }, { id: "b", label: "Sim", score: 1 }],
+  }], resultBands: [
+    { id: "db1", minScore: 0, maxScore: 33.5, risk: "Baixo", description: "" },
+    { id: "db2", minScore: 34, maxScore: 100, risk: "Alto", description: "" },
+  ] }];
+  assert.throws(() => validateFormDefinition(dimensionDecimal), /FORM_INVALID_DEFINITION/);
+});
+
+test("aceita formulário apenas com dimensões e exige cada dimensão completa para publicar", () => {
+  const draft = completeDefinition();
+  draft.questions = [];
+  draft.resultBands = [];
+  draft.dimensions = [{ id: "dim-1", name: "Sintomas", description: "", questions: [{
+    id: "dq1", prompt: "Pergunta", type: "two-options",
+    alternatives: [{ id: "a", label: "Não", score: 0 }, { id: "b", label: "Sim", score: 1 }],
+  }], resultBands: [{ id: "db1", minScore: 0, maxScore: 100, risk: "Resultado", description: "" }] }];
+  assert.equal(definitionState(validateFormDefinition(draft)), "complete");
+  draft.dimensions[0].questions[0].alternatives[0].score = null;
+  assert.equal(definitionState(validateFormDefinition(draft)), "incomplete");
+});
+
 test("preserva os mínimos de alternativas por tipo", () => {
   const twoOptions = completeDefinition();
   twoOptions.questions[0].alternatives.pop();

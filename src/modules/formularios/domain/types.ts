@@ -35,6 +35,14 @@ export type FormResultBand = {
   description: string;
 };
 
+export type FormDimension = {
+  id: string;
+  name: string;
+  description: string;
+  questions: FormQuestion[];
+  resultBands: FormResultBand[];
+};
+
 export type FormDefinition = {
   schemaVersion: 1;
   title: string;
@@ -43,6 +51,7 @@ export type FormDefinition = {
   authors: FormAuthor[];
   questions: FormQuestion[];
   resultBands: FormResultBand[];
+  dimensions?: FormDimension[];
 };
 
 export type FormDetail = FormListItem & {
